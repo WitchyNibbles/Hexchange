@@ -35,11 +35,19 @@ function parseNumber(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function resolvePath(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return path.resolve(process.cwd(), value);
+}
+
 export function loadRuntimeConfig(env: EnvSource = process.env): RuntimeConfig {
   const mode = env.HEXCHANGE_ENGINE_MODE === "nautilus" ? "nautilus" : "simulated";
-  const pythonPath = env.HEXCHANGE_NAUTILUS_PYTHON ?? null;
-  const projectDir = env.HEXCHANGE_NAUTILUS_PROJECT_DIR ?? null;
-  const runsDir = env.HEXCHANGE_NAUTILUS_RUNS_DIR ?? null;
+  const pythonPath = resolvePath(env.HEXCHANGE_NAUTILUS_PYTHON);
+  const projectDir = resolvePath(env.HEXCHANGE_NAUTILUS_PROJECT_DIR);
+  const runsDir = resolvePath(env.HEXCHANGE_NAUTILUS_RUNS_DIR);
 
   if (mode === "nautilus" && (!pythonPath || !projectDir || !runsDir)) {
     throw new Error("Nautilus mode requires python path, project dir, and runs dir.");
@@ -77,3 +85,4 @@ export function loadRuntimeConfig(env: EnvSource = process.env): RuntimeConfig {
     },
   };
 }
+import path from "node:path";

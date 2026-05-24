@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import path from "node:path";
 import { loadRuntimeConfig } from "../../../src/server/config/runtime-config";
 
 describe("runtime config", () => {
@@ -44,5 +45,18 @@ describe("runtime config", () => {
       apiSecret: "kraken-secret",
       accountType: "spot",
     });
+  });
+
+  it("normalizes relative Nautilus paths against the current working directory", () => {
+    const config = loadRuntimeConfig({
+      HEXCHANGE_ENGINE_MODE: "nautilus",
+      HEXCHANGE_NAUTILUS_PYTHON: ".venv/bin/python",
+      HEXCHANGE_NAUTILUS_PROJECT_DIR: "engine/nautilus",
+      HEXCHANGE_NAUTILUS_RUNS_DIR: ".hexchange-test-runs",
+    });
+
+    expect(config.engine.pythonPath).toBe(path.resolve(process.cwd(), ".venv/bin/python"));
+    expect(config.engine.projectDir).toBe(path.resolve(process.cwd(), "engine/nautilus"));
+    expect(config.engine.runsDir).toBe(path.resolve(process.cwd(), ".hexchange-test-runs"));
   });
 });

@@ -292,7 +292,8 @@ export class HexchangeService {
 
   async armLiveStrategy(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
-    const armed = this.liveTradingController.armStrategy(strategy);
+    const latestBacktest = this.backtests.find((item) => item.strategyId === strategyId) ?? null;
+    const armed = this.liveTradingController.armStrategy(strategy, latestBacktest);
     this.updateStrategy(armed);
 
     await this.recordEvent({

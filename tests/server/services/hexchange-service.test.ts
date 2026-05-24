@@ -18,6 +18,10 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }),
   );
+  delete process.env.HEXCHANGE_ENGINE_MODE;
+  delete process.env.HEXCHANGE_NAUTILUS_PYTHON;
+  delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
+  delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
 });
 
 describe("hexchange service persistence", () => {
@@ -78,5 +82,27 @@ describe("hexchange service persistence", () => {
     expect(engineStatus.latestBacktests.some((item) => item.strategyId === "stock-momentum")).toBe(true);
     expect(restoredStrategy?.validation.feeAdjustedReturnPct).toBe(backtest.feeAdjustedReturnPct);
     expect(restoredStrategy?.validation.maxDrawdownPct).toBe(backtest.maxDrawdownPct);
+  });
+
+  it("requires a real backtest before arming live trading", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("stock-momentum");
+
+    await expect(service.armLiveStrategy("stock-momentum")).rejects.toThrow(/real nautilus backtest/i);
+
+    await service.runStrategyBacktest("stock-momentum");
+
+    const armed = await service.armLiveStrategy("stock-momentum");
+    expect(armed.stage).toBe("live");
   });
 });

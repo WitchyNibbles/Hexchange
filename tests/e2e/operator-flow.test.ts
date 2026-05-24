@@ -1,19 +1,38 @@
 import request from "supertest";
+import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServerApp } from "../../src/server/app";
 import { createHexchangeService } from "../../src/server/services/hexchange-service";
 
 describe("operator flow", () => {
   let app: ReturnType<typeof createServerApp>;
+  let appDir: string;
+  let runsDir: string;
 
   beforeAll(async () => {
-    process.env.HEXCHANGE_APP_DIR = ".hexchange-test";
+    appDir = await mkdtemp(path.join(os.tmpdir(), "hexchange-operator-app-"));
+    runsDir = await mkdtemp(path.join(os.tmpdir(), "hexchange-operator-runs-"));
+    process.env.HEXCHANGE_APP_DIR = appDir;
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
     const service = await createHexchangeService();
     app = createServerApp(service);
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     delete process.env.HEXCHANGE_APP_DIR;
+    delete process.env.HEXCHANGE_ENGINE_MODE;
+    delete process.env.HEXCHANGE_NAUTILUS_PYTHON;
+    delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
+    delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
+    await rm(appDir, { recursive: true, force: true });
+    await rm(runsDir, { recursive: true, force: true });
   });
 
   it("starts paper trading, arms live mode, and halts via kill switch", async () => {
