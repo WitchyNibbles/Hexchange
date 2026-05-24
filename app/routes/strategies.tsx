@@ -29,6 +29,10 @@ export function StrategiesRoute() {
               <li>Drawdown: {strategy.validation.maxDrawdownPct.toFixed(2)}%</li>
               <li>Paper drift: {strategy.validation.paperDriftPct.toFixed(2)}%</li>
             </ul>
+            <div className="validation-report">
+              <strong>Promotion gate</strong>
+              <p>{strategy.validationReport.join(" ")}</p>
+            </div>
             <div className="strategy-actions">
               <button
                 type="button"

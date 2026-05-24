@@ -48,6 +48,18 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.engageKillSwitch(reason));
   });
 
+  app.post("/api/control/kill-switch/reset", async (_request, response) => {
+    response.json(await service.resetKillSwitch());
+  });
+
+  app.get("/api/control/settings", (_request, response) => {
+    response.json(service.getRiskSettings());
+  });
+
+  app.patch("/api/control/settings", async (request, response) => {
+    response.json(await service.updateRiskSettings(request.body ?? {}));
+  });
+
   registerEventRoutes(app, service);
 
   const distIndex = path.join(rootDir, "dist", "index.html");

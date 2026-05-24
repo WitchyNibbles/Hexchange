@@ -261,6 +261,37 @@ button.danger {
   border: 1px solid rgba(126, 240, 255, 0.08);
 }
 
+.validation-report {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(126, 240, 255, 0.06);
+}
+
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin: 1.1rem 0 1rem;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.settings-form input {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(126, 240, 255, 0.14);
+  background: rgba(4, 16, 40, 0.82);
+  color: var(--text);
+  font: inherit;
+}
+
 .event-meta,
 .strategy-heading,
 .strategy-actions,
@@ -302,6 +333,10 @@ button.danger {
   }
 
   .page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-form {
     grid-template-columns: 1fr;
   }
 }

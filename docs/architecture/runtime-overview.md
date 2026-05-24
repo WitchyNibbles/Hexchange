@@ -17,7 +17,7 @@
 ## Local storage
 
 - `.hexchange/events.json` persistent audit and ritual log
-- `.hexchange/state.json` reserved for future durable portfolio state
+- `.hexchange/state.json` persistent strategies, orders, positions, trades, risk settings, and kill-switch state
 
 ## Environment variables
 

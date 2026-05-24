@@ -40,6 +40,7 @@ export interface StrategySummary {
   validation: StrategyValidationMetrics;
   paperSessionActive: boolean;
   liveEligible: boolean;
+  validationReport: string[];
 }
 
 export interface TradeSummary extends TradeLogEntry {}
@@ -55,4 +56,10 @@ export interface PortfolioSnapshot {
     quantity: number;
     status: OrderStatus;
   }>;
+}
+
+export interface RiskSettings {
+  maxPositionNotionalUsd: number;
+  maxDailyLossPct: number;
+  liveRolloutCapUsd: number;
 }

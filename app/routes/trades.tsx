@@ -1,15 +1,43 @@
-import { getPortfolio, getTrades, postJson } from "../lib/api";
+import { useEffect, useState } from "react";
+import { getPortfolio, getRiskSettings, getSystemStatus, getTrades, patchJson, postJson } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { PortfolioSnapshot, TradeSummary } from "../../src/shared/contracts";
+import type { PortfolioSnapshot, RiskSettings, SystemStatus, TradeSummary } from "../../src/shared/contracts";
 
 const emptyPortfolio: PortfolioSnapshot = {
   positions: [],
   openOrders: [],
 };
 
+const defaultRiskSettings: RiskSettings = {
+  maxPositionNotionalUsd: 100000,
+  maxDailyLossPct: 8,
+  liveRolloutCapUsd: 500,
+};
+
+const defaultSystemStatus: SystemStatus = {
+  mode: "research",
+  currentActivity: "Loading status...",
+  totalProfitUsd: 0,
+  totalProfitPct: 0,
+  dailyDrawdownPct: 0,
+  grossExposureUsd: 0,
+  activeWarnings: [],
+  paperStrategies: 0,
+  liveStrategies: 0,
+  killSwitchEngaged: false,
+  dataFreshness: "fresh",
+};
+
 export function TradesRoute() {
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const portfolio = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
+  const riskSettings = usePollingJson<RiskSettings>(getRiskSettings, defaultRiskSettings);
+  const status = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
+  const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
+
+  useEffect(() => {
+    setDraftSettings(riskSettings);
+  }, [riskSettings]);
 
   return (
     <div className="page-grid">
@@ -58,6 +86,100 @@ export function TradesRoute() {
         >
           Engage kill switch
         </button>
+      </section>
+      <section className="glass-panel control-center-panel">
+        <div className="panel-header">
+          <p className="panel-kicker">Control Center</p>
+        </div>
+        <h3>Risk settings and safeguards</h3>
+        <p className="panel-copy">
+          Tune the notional cap, drawdown ceiling, and live rollout size locally. Every change is persisted
+          so the observatory comes back exactly how you left it.
+        </p>
+        <div className="metric-stack">
+          <div>
+            <span>Max notional</span>
+            <strong>${riskSettings.maxPositionNotionalUsd.toFixed(0)}</strong>
+          </div>
+          <div>
+            <span>Daily loss threshold</span>
+            <strong>{riskSettings.maxDailyLossPct.toFixed(2)}%</strong>
+          </div>
+          <div>
+            <span>Live rollout cap</span>
+            <strong>${riskSettings.liveRolloutCapUsd.toFixed(0)}</strong>
+          </div>
+          <div>
+            <span>Kill switch</span>
+            <strong>{status.killSwitchEngaged ? "engaged" : "ready"}</strong>
+          </div>
+        </div>
+        <div className="settings-form">
+          <label>
+            <span>Max notional (USD)</span>
+            <input
+              type="number"
+              value={draftSettings.maxPositionNotionalUsd}
+              onChange={(event) => {
+                setDraftSettings((current) => ({
+                  ...current,
+                  maxPositionNotionalUsd: Number(event.target.value),
+                }));
+              }}
+            />
+          </label>
+          <label>
+            <span>Daily loss threshold (%)</span>
+            <input
+              type="number"
+              step="0.25"
+              value={draftSettings.maxDailyLossPct}
+              onChange={(event) => {
+                setDraftSettings((current) => ({
+                  ...current,
+                  maxDailyLossPct: Number(event.target.value),
+                }));
+              }}
+            />
+          </label>
+          <label>
+            <span>Live rollout cap (USD)</span>
+            <input
+              type="number"
+              value={draftSettings.liveRolloutCapUsd}
+              onChange={(event) => {
+                setDraftSettings((current) => ({
+                  ...current,
+                  liveRolloutCapUsd: Number(event.target.value),
+                }));
+              }}
+            />
+          </label>
+        </div>
+        <div className="strategy-actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              void patchJson("/api/control/settings", {
+                maxPositionNotionalUsd: draftSettings.maxPositionNotionalUsd,
+                maxDailyLossPct: draftSettings.maxDailyLossPct,
+                liveRolloutCapUsd: draftSettings.liveRolloutCapUsd,
+              });
+            }}
+          >
+            Save settings
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              void postJson("/api/control/kill-switch/reset");
+            }}
+          >
+            Reset kill switch
+          </button>
+        </div>
       </section>
     </div>
   );

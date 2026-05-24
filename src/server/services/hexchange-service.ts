@@ -1,5 +1,12 @@
 import path from "node:path";
-import type { HealthPayload, PortfolioSnapshot, StrategySummary, SystemStatus, TradeSummary } from "../../shared/contracts";
+import type {
+  HealthPayload,
+  PortfolioSnapshot,
+  RiskSettings,
+  StrategySummary,
+  SystemStatus,
+  TradeSummary,
+} from "../../shared/contracts";
 import type { EventSummary } from "../../shared/contracts";
 import type { NormalizedOrder, OrderIntent } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
@@ -15,6 +22,7 @@ import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
 import { KillSwitch } from "../risk/kill-switch";
 import { RiskEngine } from "../risk/risk-engine";
+import { RuntimeStateStore } from "../state/runtime-state-store";
 import { buildValidationReport } from "../strategies/validation-report";
 import { buildReferenceStrategies } from "../strategies/strategy-registry";
 
@@ -25,11 +33,13 @@ function createId(prefix: string): string {
 export class HexchangeService {
   private readonly marketDataService = new MarketDataService();
   private readonly killSwitch = new KillSwitch();
+  private readonly riskSettings: RiskSettings = {
+    maxPositionNotionalUsd: 100000,
+    maxDailyLossPct: 8,
+    liveRolloutCapUsd: 500,
+  };
   private readonly riskEngine = new RiskEngine(
-    {
-      maxPositionNotionalUsd: 100000,
-      maxDailyLossPct: 8,
-    },
+    this.riskSettings,
     this.killSwitch,
     this.marketDataService,
   );
@@ -37,6 +47,7 @@ export class HexchangeService {
   private readonly engineAdapter = createEngineAdapter();
   private readonly broker = AlpacaPaperBroker.fromEnv();
   private readonly eventStore: EventStore;
+  private readonly runtimeStateStore: RuntimeStateStore;
   private strategies: StrategyState[] = buildReferenceStrategies(this.marketDataService);
   private orders: NormalizedOrder[] = [];
   private positions: PositionSnapshot[] = [];
@@ -44,10 +55,12 @@ export class HexchangeService {
 
   constructor(appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange") {
     this.eventStore = new EventStore(path.join(appDir, "events.json"));
+    this.runtimeStateStore = new RuntimeStateStore(path.join(appDir, "state.json"));
   }
 
   async initialize(): Promise<void> {
     await this.eventStore.ensureReady();
+    await this.loadPersistedState();
     await this.recordEvent({
       kind: "system",
       title: "Hexchange observatory online",
@@ -103,6 +116,7 @@ export class HexchangeService {
       validation: strategy.validation,
       paperSessionActive: strategy.paperSessionActive,
       liveEligible: buildValidationReport(strategy).passed,
+      validationReport: buildValidationReport(strategy).reasons,
     }));
   }
 
@@ -127,6 +141,32 @@ export class HexchangeService {
 
   async listEvents(): Promise<EventSummary[]> {
     return this.eventStore.list();
+  }
+
+  getRiskSettings(): RiskSettings {
+    return { ...this.riskSettings };
+  }
+
+  async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {
+    if (typeof nextSettings.maxPositionNotionalUsd === "number") {
+      this.riskSettings.maxPositionNotionalUsd = nextSettings.maxPositionNotionalUsd;
+    }
+    if (typeof nextSettings.maxDailyLossPct === "number") {
+      this.riskSettings.maxDailyLossPct = nextSettings.maxDailyLossPct;
+    }
+    if (typeof nextSettings.liveRolloutCapUsd === "number") {
+      this.riskSettings.liveRolloutCapUsd = nextSettings.liveRolloutCapUsd;
+    }
+
+    await this.persistState();
+    await this.recordEvent({
+      kind: "system",
+      title: "Risk settings updated",
+      body: `Max notional ${this.riskSettings.maxPositionNotionalUsd}, daily loss ${this.riskSettings.maxDailyLossPct}%, live rollout ${this.riskSettings.liveRolloutCapUsd}.`,
+      severity: "info",
+    });
+
+    return this.getRiskSettings();
   }
 
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
@@ -176,6 +216,8 @@ export class HexchangeService {
       }
     }
 
+    await this.persistState();
+
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
@@ -190,6 +232,8 @@ export class HexchangeService {
       body: "Live trading was enabled with a tiny rollout cap after passing promotion gates.",
       severity: "warning",
     });
+
+    await this.persistState();
 
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
@@ -209,6 +253,20 @@ export class HexchangeService {
       severity: "critical",
     });
 
+    await this.persistState();
+
+    return this.getSystemStatus();
+  }
+
+  async resetKillSwitch(): Promise<SystemStatus> {
+    this.killSwitch.disengage();
+    await this.recordEvent({
+      kind: "kill_switch",
+      title: "Kill switch reset",
+      body: "The operator reset the kill switch. Halted strategies remain halted until re-armed manually.",
+      severity: "info",
+    });
+    await this.persistState();
     return this.getSystemStatus();
   }
 
@@ -264,6 +322,8 @@ export class HexchangeService {
       this.engineAdapter.setPositions(intent.strategyId, this.positions);
     }
 
+    await this.persistState();
+
     return order;
   }
 
@@ -313,10 +373,40 @@ export class HexchangeService {
       ...event,
     });
   }
+
+  private async loadPersistedState(): Promise<void> {
+    const snapshot = await this.runtimeStateStore.load();
+    if (!snapshot) {
+      await this.persistState();
+      return;
+    }
+
+    this.strategies = snapshot.strategies;
+    this.orders = snapshot.orders;
+    this.positions = snapshot.positions;
+    this.trades = snapshot.trades;
+    this.riskSettings.maxPositionNotionalUsd = snapshot.riskSettings.maxPositionNotionalUsd;
+    this.riskSettings.maxDailyLossPct = snapshot.riskSettings.maxDailyLossPct;
+    this.riskSettings.liveRolloutCapUsd = snapshot.riskSettings.liveRolloutCapUsd;
+    if (snapshot.killSwitch.engaged) {
+      this.killSwitch.engage(snapshot.killSwitch.reason);
+    }
+  }
+
+  private async persistState(): Promise<void> {
+    await this.runtimeStateStore.save({
+      strategies: this.strategies,
+      orders: this.orders,
+      positions: this.positions,
+      trades: this.trades,
+      riskSettings: this.riskSettings,
+      killSwitch: this.killSwitch.getState(),
+    });
+  }
 }
 
-export async function createHexchangeService(): Promise<HexchangeService> {
-  const service = new HexchangeService();
+export async function createHexchangeService(appDir?: string): Promise<HexchangeService> {
+  const service = new HexchangeService(appDir);
   await service.initialize();
   return service;
 }

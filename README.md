@@ -11,6 +11,7 @@ Hexchange is a local-first trading workstation for stocks and crypto. It is desi
 - sample stock momentum and crypto breakout strategies
 - promotion gates, kill switch, and live-armament policy
 - file-backed event log and trade journal for auditability
+- persistent control-center settings for notional, drawdown, and rollout caps
 
 ## Quick start
 
