@@ -1,23 +1,21 @@
 # Venue Readiness
 
-## Alpaca
-
-- `HEXCHANGE_ENABLE_ALPACA_PAPER=true`
-- paper key and secret configured
-- paper endpoint reachable
-- one equity symbol and one crypto symbol validated
-
 ## Interactive Brokers
 
-- not implemented in this slice
-- add only after the Alpaca paper loop is stable
-
-## Coinbase Advanced Trade
-
-- not implemented in this slice
-- add only after crypto paper tracking is stable
+- local gateway or TWS reachable
+- host, port, and client id configured
+- account id configured if required by the deployment
+- first stock symbol path validated through the Nautilus runtime
 
 ## Kraken
 
-- not implemented in this slice
-- add only after crypto paper tracking is stable
+- API key and secret configured locally
+- account type confirmed: `spot` or `futures`
+- first crypto symbol path validated through the Nautilus runtime
+
+## Deprecated primary path
+
+### Alpaca
+
+- retained only as legacy MVP scaffolding
+- not the primary venue target for the Nautilus migration

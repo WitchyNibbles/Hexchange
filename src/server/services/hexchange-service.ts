@@ -67,7 +67,7 @@ export class HexchangeService {
     await this.recordEvent({
       kind: "system",
       title: "Hexchange observatory online",
-      body: "The local operator console is ready. Paper mode will use seeded simulation until Alpaca paper credentials are enabled.",
+      body: "The local operator console is ready. Nautilus will stay in seeded simulation until the local runtime and Interactive Brokers plus Kraken credentials are configured.",
       severity: "info",
     });
   }

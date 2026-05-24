@@ -20,6 +20,16 @@ describe("operator flow", () => {
     const engineStatus = await request(app).get("/api/engine/status");
     expect(engineStatus.status).toBe(200);
     expect(engineStatus.body.mode).toBeDefined();
+    expect(engineStatus.body.venues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ venue: "interactive_brokers" }),
+        expect.objectContaining({ venue: "kraken" }),
+      ]),
+    );
+
+    const events = await request(app).get("/api/events");
+    expect(events.status).toBe(200);
+    expect(events.body[0]?.body).toMatch(/interactive brokers|kraken|nautilus/i);
 
     const backtest = await request(app).post("/api/strategies/stock-momentum/backtest");
     expect(backtest.status).toBe(200);
