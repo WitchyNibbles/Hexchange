@@ -1,6 +1,13 @@
 import type { EngineAdapter } from "./types";
-import { LeanAdapter } from "./lean-adapter";
+import { loadRuntimeConfig } from "../config/runtime-config";
+import { NautilusAdapter } from "./nautilus-adapter";
 
 export function createEngineAdapter(): EngineAdapter {
-  return new LeanAdapter();
+  const config = loadRuntimeConfig();
+  return new NautilusAdapter({
+    mode: config.engine.mode,
+    pythonPath: config.engine.pythonPath,
+    projectDir: config.engine.projectDir,
+    runsDir: config.engine.runsDir,
+  });
 }
