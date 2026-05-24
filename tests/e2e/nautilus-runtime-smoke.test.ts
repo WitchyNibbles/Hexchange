@@ -28,10 +28,11 @@ describe("nautilus runtime smoke", () => {
   it("runs a local backtest and managed paper session in nautilus mode", async () => {
     const appDir = await createTempDir("hexchange-nautilus-app-");
     const runsDir = await createTempDir("hexchange-nautilus-runs-");
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
 
     process.env.HEXCHANGE_APP_DIR = appDir;
     process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
-    process.env.HEXCHANGE_NAUTILUS_PYTHON = "python3";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
 

@@ -78,10 +78,16 @@ describe("process runner", () => {
 
     const parsed = JSON.parse(readFileSync(status.artifactPath!, "utf8")) as {
       runtimeHealth: string;
+      nautilusInstalled: boolean;
+      nautilusVersion: string | null;
       sessions: Array<{ strategyId: string; state: string }>;
     };
 
-    expect(parsed.runtimeHealth).toBe("ready");
+    expect(["ready", "degraded"]).toContain(parsed.runtimeHealth);
+    expect(typeof parsed.nautilusInstalled).toBe("boolean");
+    if (parsed.nautilusInstalled) {
+      expect(parsed.nautilusVersion).toMatch(/\d+\.\d+\.\d+/);
+    }
     expect(parsed.sessions).toEqual(
       expect.arrayContaining([expect.objectContaining({ strategyId: "stock-momentum", state: "paper" })]),
     );

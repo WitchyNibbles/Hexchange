@@ -32,6 +32,7 @@ const defaultEngineStatus: EngineStatus = {
   mode: "simulated",
   available: true,
   runtimeHealth: "offline",
+  runtimeDetails: "Running in simulated mode.",
   venues: [],
   latestBacktests: [],
 };
@@ -128,6 +129,7 @@ export function TradesRoute() {
           <p>
             {engineStatus.mode} runtime is {engineStatus.runtimeHealth}.
           </p>
+          <p>{engineStatus.runtimeDetails ?? "No runtime details available."}</p>
           <ul className="strategy-stats">
             {engineStatus.venues.map((venue) => (
               <li key={venue.venue}>

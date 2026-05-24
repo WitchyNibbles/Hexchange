@@ -38,6 +38,7 @@ export interface EngineStatus {
   mode: "simulated" | "nautilus";
   available: boolean;
   runtimeHealth: "ready" | "degraded" | "offline";
+  runtimeDetails?: string | null;
   venues: VenueConnectivity[];
   latestBacktests: BacktestResult[];
 }

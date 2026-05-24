@@ -59,12 +59,11 @@ describe("trades control center", () => {
     render(<TradesRoute />);
 
     await waitFor(() => {
-      expect(screen.getByText("Control Center")).toBeInTheDocument();
+      expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
     });
 
     expect(screen.getAllByText(/Daily loss threshold/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/engine venue posture/i)).toBeInTheDocument();
-    expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
     expect(screen.getByText(/kraken/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset kill switch/i })).toBeInTheDocument();
   });

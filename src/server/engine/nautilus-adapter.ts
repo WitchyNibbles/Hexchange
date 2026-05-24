@@ -1,7 +1,9 @@
 import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
+import { existsSync } from "node:fs";
 import { createProcessRunner, type ProcessRunner, type ProcessRunnerResult } from "./process-runner";
 import { parseBacktestResult } from "./result-parser";
+import { parseRuntimeStatus } from "./runtime-status-parser";
 import { parsePaperSession } from "./session-parser";
 import type {
   BacktestRequest,
@@ -121,10 +123,51 @@ export class NautilusAdapter implements EngineAdapter {
   }
 
   async getEngineStatus(): Promise<EngineStatus> {
+    if (this.options.mode === "nautilus" && this.options.projectDir && existsSync(this.options.projectDir)) {
+      const result = await this.runner({
+        command: "status",
+        payload: {
+          pythonPath: this.options.pythonPath,
+          projectDir: this.options.projectDir,
+          runsDir: this.options.runsDir,
+        },
+      });
+
+      if (result.ok && result.artifactPath) {
+        const runtimeStatus = await parseRuntimeStatus(result.artifactPath);
+
+        return {
+          mode: this.options.mode,
+          available: true,
+          runtimeHealth: runtimeStatus.runtimeHealth,
+          runtimeDetails: runtimeStatus.nautilusInstalled
+            ? `nautilus_trader ${runtimeStatus.nautilusVersion ?? "installed"}`
+            : "nautilus_trader is not installed in the selected Python environment.",
+          venues: [
+            {
+              venue: "interactive_brokers",
+              connected: false,
+              scope: "stocks",
+            },
+            {
+              venue: "kraken",
+              connected: false,
+              scope: "crypto",
+            },
+          ],
+          latestBacktests: this.backtests,
+        };
+      }
+    }
+
     return {
       mode: this.options.mode,
       available: true,
       runtimeHealth: this.options.mode === "nautilus" ? "ready" : "offline",
+      runtimeDetails:
+        this.options.mode === "nautilus"
+          ? "Runtime configuration loaded. Status probe activates when the Nautilus project path is available."
+          : "Running in simulated mode.",
       venues: [
         {
           venue: "interactive_brokers",
