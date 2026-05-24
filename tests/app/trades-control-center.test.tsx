@@ -15,6 +15,24 @@ describe("trades control center", () => {
         maxDailyLossPct: 4.5,
         liveRolloutCapUsd: 750,
       },
+      "/api/engine/status": {
+        mode: "nautilus",
+        available: true,
+        runtimeHealth: "ready",
+        venues: [
+          {
+            venue: "interactive_brokers",
+            connected: false,
+            scope: "stocks",
+          },
+          {
+            venue: "kraken",
+            connected: true,
+            scope: "crypto",
+          },
+        ],
+        latestBacktests: [],
+      },
       "/api/system/status": {
         mode: "halted",
         currentActivity: "Trading is paused.",
@@ -45,6 +63,9 @@ describe("trades control center", () => {
     });
 
     expect(screen.getAllByText(/Daily loss threshold/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/engine venue posture/i)).toBeInTheDocument();
+    expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset kill switch/i })).toBeInTheDocument();
   });
 });

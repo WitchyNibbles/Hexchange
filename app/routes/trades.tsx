@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { getPortfolio, getRiskSettings, getSystemStatus, getTrades, patchJson, postJson } from "../lib/api";
+import { getEngineStatus, getPortfolio, getRiskSettings, getSystemStatus, getTrades, patchJson, postJson } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { PortfolioSnapshot, RiskSettings, SystemStatus, TradeSummary } from "../../src/shared/contracts";
+import type { EngineStatus, PortfolioSnapshot, RiskSettings, SystemStatus, TradeSummary } from "../../src/shared/contracts";
 
 const emptyPortfolio: PortfolioSnapshot = {
   positions: [],
@@ -28,11 +28,20 @@ const defaultSystemStatus: SystemStatus = {
   dataFreshness: "fresh",
 };
 
+const defaultEngineStatus: EngineStatus = {
+  mode: "simulated",
+  available: true,
+  runtimeHealth: "offline",
+  venues: [],
+  latestBacktests: [],
+};
+
 export function TradesRoute() {
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const portfolio = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
   const riskSettings = usePollingJson<RiskSettings>(getRiskSettings, defaultRiskSettings);
   const status = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
+  const engineStatus = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
   const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
 
   useEffect(() => {
@@ -113,6 +122,19 @@ export function TradesRoute() {
             <span>Kill switch</span>
             <strong>{status.killSwitchEngaged ? "engaged" : "ready"}</strong>
           </div>
+        </div>
+        <div className="validation-report">
+          <strong>Engine venue posture</strong>
+          <p>
+            {engineStatus.mode} runtime is {engineStatus.runtimeHealth}.
+          </p>
+          <ul className="strategy-stats">
+            {engineStatus.venues.map((venue) => (
+              <li key={venue.venue}>
+                {venue.venue.replaceAll("_", " ")} · {venue.scope} · {venue.connected ? "connected" : "offline"}
+              </li>
+            ))}
+          </ul>
         </div>
         <div className="settings-form">
           <label>
