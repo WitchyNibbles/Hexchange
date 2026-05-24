@@ -2,6 +2,7 @@ import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
 import { createProcessRunner, type ProcessRunner, type ProcessRunnerResult } from "./process-runner";
 import { parseBacktestResult } from "./result-parser";
+import { parsePaperSession } from "./session-parser";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -55,6 +56,24 @@ export class NautilusAdapter implements EngineAdapter {
   }
 
   async startPaperSession(strategyId: string): Promise<PaperSession> {
+    if (this.options.mode === "nautilus") {
+      const result = await this.runner({
+        command: "start-session",
+        payload: {
+          strategyId,
+          pythonPath: this.options.pythonPath,
+          projectDir: this.options.projectDir,
+          runsDir: this.options.runsDir,
+        },
+      });
+
+      if (result.ok && result.artifactPath) {
+        const session = await parsePaperSession(result.artifactPath);
+        this.sessions.set(strategyId, session);
+        return session;
+      }
+    }
+
     const session = {
       sessionId: `paper-${strategyId}`,
       strategyId,
@@ -67,6 +86,17 @@ export class NautilusAdapter implements EngineAdapter {
   async stopSession(sessionId: string): Promise<void> {
     for (const [strategyId, session] of this.sessions.entries()) {
       if (session.sessionId === sessionId) {
+        if (this.options.mode === "nautilus") {
+          await this.runner({
+            command: "stop-session",
+            payload: {
+              strategyId,
+              pythonPath: this.options.pythonPath,
+              projectDir: this.options.projectDir,
+              runsDir: this.options.runsDir,
+            },
+          });
+        }
         this.sessions.delete(strategyId);
         return;
       }

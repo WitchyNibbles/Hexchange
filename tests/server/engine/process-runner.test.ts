@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -42,5 +43,47 @@ describe("process runner", () => {
     expect(result.ok).toBe(true);
     expect(result.artifactPath).toBeDefined();
     expect(existsSync(result.artifactPath!)).toBe(true);
+  });
+
+  it("executes the local python cli for session lifecycle and status", async () => {
+    const runsDir = await createTempDir();
+    const runner = createProcessRunner();
+    const projectDir = path.resolve(process.cwd(), "engine", "nautilus");
+
+    const start = await runner({
+      command: "start-session",
+      payload: {
+        pythonPath: "python3",
+        projectDir,
+        runsDir,
+        strategyId: "stock-momentum",
+      },
+    });
+
+    expect(start.ok).toBe(true);
+    expect(start.sessionId).toBe("paper-stock-momentum");
+    expect(existsSync(start.artifactPath!)).toBe(true);
+
+    const status = await runner({
+      command: "status",
+      payload: {
+        pythonPath: "python3",
+        projectDir,
+        runsDir,
+      },
+    });
+
+    expect(status.ok).toBe(true);
+    expect(existsSync(status.artifactPath!)).toBe(true);
+
+    const parsed = JSON.parse(readFileSync(status.artifactPath!, "utf8")) as {
+      runtimeHealth: string;
+      sessions: Array<{ strategyId: string; state: string }>;
+    };
+
+    expect(parsed.runtimeHealth).toBe("ready");
+    expect(parsed.sessions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ strategyId: "stock-momentum", state: "paper" })]),
+    );
   });
 });

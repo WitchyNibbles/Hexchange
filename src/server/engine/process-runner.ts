@@ -4,11 +4,12 @@ import { promisify } from "node:util";
 export interface ProcessRunnerResult {
   ok: boolean;
   artifactPath?: string;
+  sessionId?: string;
   error?: string;
 }
 
 export interface ProcessRunnerRequest {
-  command: "backtest" | "start-session" | "stop-session";
+  command: "backtest" | "start-session" | "stop-session" | "status";
   payload: Record<string, unknown>;
 }
 
@@ -58,11 +59,13 @@ export function createProcessRunner(): ProcessRunner {
         status: string;
         message: string;
         artifactPath?: string | null;
+        sessionId?: string | null;
       };
 
       return {
         ok: parsed.status === "ok",
         artifactPath: parsed.artifactPath ?? undefined,
+        sessionId: parsed.sessionId ?? undefined,
       };
     } catch (error) {
       return {

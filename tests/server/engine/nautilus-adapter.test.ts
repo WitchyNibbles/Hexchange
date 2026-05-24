@@ -54,4 +54,39 @@ describe("nautilus adapter", () => {
     expect(result.feeAdjustedReturnPct).toBeGreaterThan(0);
     expect(result.runId).toContain("backtest-crypto-breakout");
   });
+
+  it("uses a runner artifact to start and stop managed paper sessions", async () => {
+    const fixturePath = path.resolve(process.cwd(), "tests", "fixtures", "nautilus", "session-status.json");
+    const runnerCalls: string[] = [];
+    const adapter = new NautilusAdapter({
+      mode: "nautilus",
+      pythonPath: "/usr/bin/python3",
+      projectDir: "/tmp/engine/nautilus",
+      runsDir: "/tmp/engine/runs",
+      runner: async (request) => {
+        runnerCalls.push(request.command);
+        return {
+          ok: true,
+          artifactPath: fixturePath,
+          sessionId: "paper-stock-momentum",
+        };
+      },
+    });
+
+    const session = await adapter.startPaperSession("stock-momentum");
+    expect(session).toEqual({
+      sessionId: "paper-stock-momentum",
+      strategyId: "stock-momentum",
+      startedAt: "2026-05-24T11:30:00.000Z",
+    });
+
+    const status = await adapter.getStrategyStatus("stock-momentum");
+    expect(status.state).toBe("paper");
+
+    await adapter.stopSession(session.sessionId);
+
+    const finalStatus = await adapter.getStrategyStatus("stock-momentum");
+    expect(finalStatus.state).toBe("idle");
+    expect(runnerCalls).toEqual(["start-session", "stop-session"]);
+  });
 });

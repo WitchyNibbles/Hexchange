@@ -4,7 +4,7 @@ import argparse
 
 from .models import CliResult
 from .runners.backtest import run_backtest
-from .runners.session import start_session, stop_session
+from .runners.session import runtime_status, start_session, stop_session
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,7 +45,8 @@ def main() -> None:
         artifact_path = stop_session(args.strategy_id, args.runs_dir)
         result = CliResult(status="ok", message="Session stopped.", artifactPath=artifact_path)
     else:
-        result = CliResult(status="ok", message=f"Runtime ready for {args.runs_dir}.")
+        artifact_path = runtime_status(args.runs_dir)
+        result = CliResult(status="ok", message=f"Runtime ready for {args.runs_dir}.", artifactPath=artifact_path)
 
     print(result.to_json())
 
