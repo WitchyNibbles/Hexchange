@@ -58,4 +58,17 @@ describe("hexchange service persistence", () => {
     expect(service.getSystemStatus().killSwitchEngaged).toBe(false);
     expect(service.listTrades().length).toBeGreaterThan(0);
   });
+
+  it("persists backtest evidence and engine status across restarts", async () => {
+    const appDir = await createTempDir();
+    const first = await createHexchangeService(appDir);
+
+    const backtest = await first.runStrategyBacktest("stock-momentum");
+    expect(backtest.strategyId).toBe("stock-momentum");
+
+    const second = await createHexchangeService(appDir);
+    const engineStatus = await second.getEngineStatus();
+
+    expect(engineStatus.latestBacktests.some((item) => item.strategyId === "stock-momentum")).toBe(true);
+  });
 });

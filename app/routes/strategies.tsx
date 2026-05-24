@@ -1,9 +1,16 @@
-import { getStrategies, postJson } from "../lib/api";
+import { getEngineStatus, getStrategies, postJson } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { StrategySummary } from "../../src/shared/contracts";
+import type { EngineStatus, StrategySummary } from "../../src/shared/contracts";
+
+const defaultEngineStatus: EngineStatus = {
+  mode: "simulated",
+  available: true,
+  latestBacktests: [],
+};
 
 export function StrategiesRoute() {
   const strategies = usePollingJson<StrategySummary[]>(getStrategies, []);
+  const engineStatus = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
 
   return (
     <section className="glass-panel strategies-page">
@@ -11,6 +18,11 @@ export function StrategiesRoute() {
         <p className="panel-kicker">Spellbook</p>
       </div>
       <h2>Strategy library</h2>
+      <div className="engine-callout">
+        <span>Engine mode</span>
+        <strong>{engineStatus.mode}</strong>
+        <p>{engineStatus.available ? "Backtest engine ready." : "Backtest engine unavailable."}</p>
+      </div>
       <div className="strategy-list">
         {strategies.map((strategy) => (
           <article className="strategy-card" key={strategy.id}>
@@ -33,7 +45,24 @@ export function StrategiesRoute() {
               <strong>Promotion gate</strong>
               <p>{strategy.validationReport.join(" ")}</p>
             </div>
+            <div className="validation-report">
+              <strong>Last backtest</strong>
+              <p>
+                {strategy.lastBacktest
+                  ? `${strategy.lastBacktest.feeAdjustedReturnPct.toFixed(2)}% return, ${strategy.lastBacktest.maxDrawdownPct.toFixed(2)}% drawdown, ${strategy.lastBacktest.trades} trades.`
+                  : "No backtest has been recorded yet."}
+              </p>
+            </div>
             <div className="strategy-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  void postJson(`/api/strategies/${strategy.id}/backtest`);
+                }}
+              >
+                Run backtest
+              </button>
               <button
                 type="button"
                 onClick={() => {

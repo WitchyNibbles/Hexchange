@@ -1,5 +1,6 @@
 import path from "node:path";
 import type {
+  EngineStatus,
   HealthPayload,
   PortfolioSnapshot,
   RiskSettings,
@@ -17,6 +18,7 @@ import { EventStore } from "../audit/event-store";
 import { buildOrderNarrative, buildSignalNarrative } from "../audit/explanation-builder";
 import { AlpacaPaperBroker } from "../brokers/alpaca/alpaca-paper-broker";
 import { createEngineAdapter } from "../engine/engine-adapter";
+import type { BacktestResult } from "../engine/types";
 import { LeanAdapter } from "../engine/lean-adapter";
 import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
@@ -52,6 +54,7 @@ export class HexchangeService {
   private orders: NormalizedOrder[] = [];
   private positions: PositionSnapshot[] = [];
   private trades: TradeLogEntry[] = [];
+  private backtests: BacktestResult[] = [];
 
   constructor(appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange") {
     this.eventStore = new EventStore(path.join(appDir, "events.json"));
@@ -117,6 +120,7 @@ export class HexchangeService {
       paperSessionActive: strategy.paperSessionActive,
       liveEligible: buildValidationReport(strategy).passed,
       validationReport: buildValidationReport(strategy).reasons,
+      lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
     }));
   }
 
@@ -147,6 +151,14 @@ export class HexchangeService {
     return { ...this.riskSettings };
   }
 
+  async getEngineStatus(): Promise<EngineStatus> {
+    const status = await this.engineAdapter.getEngineStatus();
+    return {
+      ...status,
+      latestBacktests: this.backtests.length > 0 ? this.backtests : status.latestBacktests,
+    };
+  }
+
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {
     if (typeof nextSettings.maxPositionNotionalUsd === "number") {
       this.riskSettings.maxPositionNotionalUsd = nextSettings.maxPositionNotionalUsd;
@@ -167,6 +179,25 @@ export class HexchangeService {
     });
 
     return this.getRiskSettings();
+  }
+
+  async runStrategyBacktest(strategyId: string): Promise<BacktestResult> {
+    const strategy = this.findStrategy(strategyId);
+    const result = await this.engineAdapter.runBacktest({
+      strategyId,
+      symbol: strategy.symbol,
+      market: strategy.market,
+    });
+
+    this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== strategyId)].slice(0, 10);
+    await this.recordEvent({
+      kind: "system",
+      title: `${strategy.name} backtest completed`,
+      body: `Backtest return ${result.feeAdjustedReturnPct.toFixed(2)}% with drawdown ${result.maxDrawdownPct.toFixed(2)}%.`,
+      severity: "info",
+    });
+    await this.persistState();
+    return result;
   }
 
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
@@ -385,11 +416,15 @@ export class HexchangeService {
     this.orders = snapshot.orders;
     this.positions = snapshot.positions;
     this.trades = snapshot.trades;
+    this.backtests = snapshot.backtests ?? [];
     this.riskSettings.maxPositionNotionalUsd = snapshot.riskSettings.maxPositionNotionalUsd;
     this.riskSettings.maxDailyLossPct = snapshot.riskSettings.maxDailyLossPct;
     this.riskSettings.liveRolloutCapUsd = snapshot.riskSettings.liveRolloutCapUsd;
     if (snapshot.killSwitch.engaged) {
       this.killSwitch.engage(snapshot.killSwitch.reason);
+    }
+    if (this.engineAdapter instanceof LeanAdapter) {
+      this.engineAdapter.seedBacktests(this.backtests);
     }
   }
 
@@ -399,6 +434,7 @@ export class HexchangeService {
       orders: this.orders,
       positions: this.positions,
       trades: this.trades,
+      backtests: this.backtests,
       riskSettings: this.riskSettings,
       killSwitch: this.killSwitch.getState(),
     });

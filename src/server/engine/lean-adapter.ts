@@ -4,6 +4,7 @@ import type {
   BacktestRequest,
   BacktestResult,
   EngineAdapter,
+  EngineStatus,
   PaperSession,
   StrategyRuntimeStatus,
 } from "./types";
@@ -12,16 +13,24 @@ export class LeanAdapter implements EngineAdapter {
   private sessions = new Map<string, PaperSession>();
   private orders = new Map<string, NormalizedOrder[]>();
   private positions = new Map<string, PositionSnapshot[]>();
+  private backtests: BacktestResult[] = [];
+
+  private getMode(): EngineStatus["mode"] {
+    return process.env.HEXCHANGE_ENGINE_MODE === "lean_cli" ? "lean_cli" : "simulated";
+  }
 
   async runBacktest(request: BacktestRequest): Promise<BacktestResult> {
     const baseline = request.market === "stock" ? 11.8 : 15.4;
-
-    return {
+    const result = {
+      strategyId: request.strategyId,
       runId: `backtest-${request.strategyId}`,
       feeAdjustedReturnPct: baseline,
       maxDrawdownPct: request.market === "stock" ? 4.8 : 6.2,
       trades: request.market === "stock" ? 43 : 37,
+      executedAt: new Date().toISOString(),
     };
+    this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== request.strategyId)].slice(0, 10);
+    return result;
   }
 
   async startPaperSession(strategyId: string): Promise<PaperSession> {
@@ -60,11 +69,23 @@ export class LeanAdapter implements EngineAdapter {
     };
   }
 
+  async getEngineStatus(): Promise<EngineStatus> {
+    return {
+      mode: this.getMode(),
+      available: true,
+      latestBacktests: this.backtests,
+    };
+  }
+
   setOrders(strategyId: string, orders: NormalizedOrder[]): void {
     this.orders.set(strategyId, orders);
   }
 
   setPositions(strategyId: string, positions: PositionSnapshot[]): void {
     this.positions.set(strategyId, positions);
+  }
+
+  seedBacktests(backtests: BacktestResult[]): void {
+    this.backtests = backtests;
   }
 }

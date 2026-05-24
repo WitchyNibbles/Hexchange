@@ -6,6 +6,7 @@ import type {
   StrategyValidationMetrics,
 } from "../server/domain/strategy";
 import type { EventLogRecord, TradeLogEntry } from "../server/domain/trade-log";
+import type { BacktestResult, EngineStatus as EngineStatusPayload } from "../server/engine/types";
 
 export type AppMode = "research" | "paper" | "live" | "halted";
 
@@ -41,6 +42,7 @@ export interface StrategySummary {
   paperSessionActive: boolean;
   liveEligible: boolean;
   validationReport: string[];
+  lastBacktest: BacktestResult | null;
 }
 
 export interface TradeSummary extends TradeLogEntry {}
@@ -63,3 +65,5 @@ export interface RiskSettings {
   maxDailyLossPct: number;
   liveRolloutCapUsd: number;
 }
+
+export interface EngineStatus extends EngineStatusPayload {}

@@ -8,10 +8,12 @@ export interface BacktestRequest {
 }
 
 export interface BacktestResult {
+  strategyId: string;
   runId: string;
   feeAdjustedReturnPct: number;
   maxDrawdownPct: number;
   trades: number;
+  executedAt: string;
 }
 
 export interface PaperSession {
@@ -26,6 +28,12 @@ export interface StrategyRuntimeStatus {
   lastHeartbeatAt: string;
 }
 
+export interface EngineStatus {
+  mode: "simulated" | "lean_cli";
+  available: boolean;
+  latestBacktests: BacktestResult[];
+}
+
 export interface EngineAdapter {
   runBacktest(request: BacktestRequest): Promise<BacktestResult>;
   startPaperSession(strategyId: string): Promise<PaperSession>;
@@ -33,4 +41,5 @@ export interface EngineAdapter {
   getOrders(strategyId: string): Promise<NormalizedOrder[]>;
   getPositions(strategyId: string): Promise<PositionSnapshot[]>;
   getStrategyStatus(strategyId: string): Promise<StrategyRuntimeStatus>;
+  getEngineStatus(): Promise<EngineStatus>;
 }

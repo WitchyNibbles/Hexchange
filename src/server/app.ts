@@ -24,8 +24,16 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(service.getPortfolioSnapshot());
   });
 
+  app.get("/api/engine/status", async (_request, response) => {
+    response.json(await service.getEngineStatus());
+  });
+
   app.get("/api/strategies", (_request, response) => {
     response.json(service.listStrategies());
+  });
+
+  app.post("/api/strategies/:strategyId/backtest", async (request, response) => {
+    response.json(await service.runStrategyBacktest(request.params.strategyId));
   });
 
   app.post("/api/strategies/:strategyId/paper-session", async (request, response) => {

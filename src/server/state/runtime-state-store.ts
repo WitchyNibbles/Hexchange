@@ -5,12 +5,14 @@ import type { PositionSnapshot } from "../domain/position";
 import type { StrategyState } from "../domain/strategy";
 import type { TradeLogEntry } from "../domain/trade-log";
 import type { RiskSettings } from "../../shared/contracts";
+import type { BacktestResult } from "../engine/types";
 
 export interface RuntimeStateSnapshot {
   strategies: StrategyState[];
   orders: NormalizedOrder[];
   positions: PositionSnapshot[];
   trades: TradeLogEntry[];
+  backtests: BacktestResult[];
   riskSettings: RiskSettings;
   killSwitch: {
     engaged: boolean;

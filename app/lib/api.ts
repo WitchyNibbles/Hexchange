@@ -1,5 +1,6 @@
 import type {
   EventSummary,
+  EngineStatus,
   PortfolioSnapshot,
   RiskSettings,
   StrategySummary,
@@ -21,6 +22,10 @@ export function getSystemStatus(): Promise<SystemStatus> {
 
 export function getStrategies(): Promise<StrategySummary[]> {
   return fetchJson("/api/strategies");
+}
+
+export function getEngineStatus(): Promise<EngineStatus> {
+  return fetchJson("/api/engine/status");
 }
 
 export function getTrades(): Promise<TradeSummary[]> {

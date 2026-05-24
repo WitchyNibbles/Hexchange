@@ -17,6 +17,14 @@ describe("operator flow", () => {
   });
 
   it("starts paper trading, arms live mode, and halts via kill switch", async () => {
+    const engineStatus = await request(app).get("/api/engine/status");
+    expect(engineStatus.status).toBe(200);
+    expect(engineStatus.body.mode).toBeDefined();
+
+    const backtest = await request(app).post("/api/strategies/stock-momentum/backtest");
+    expect(backtest.status).toBe(200);
+    expect(backtest.body.strategyId).toBe("stock-momentum");
+
     const initialSettings = await request(app).get("/api/control/settings");
     expect(initialSettings.status).toBe(200);
     expect(initialSettings.body.maxPositionNotionalUsd).toBeGreaterThan(0);
