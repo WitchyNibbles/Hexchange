@@ -1,6 +1,8 @@
 import { createServerApp } from "./app";
 import { createHexchangeService } from "./services/hexchange-service";
 
+process.loadEnvFile?.();
+
 const port = Number(process.env.PORT ?? "5174");
 
 const service = await createHexchangeService();

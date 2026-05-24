@@ -16,7 +16,11 @@ if [[ ! -x "$UV_BIN" ]]; then
 fi
 
 echo "Creating Nautilus runtime virtual environment..."
-"$UV_BIN" venv "$ENGINE_DIR/.venv"
+if [[ -x "$ENGINE_DIR/.venv/bin/python" ]]; then
+  echo "Reusing existing virtual environment at $ENGINE_DIR/.venv"
+else
+  "$UV_BIN" venv "$ENGINE_DIR/.venv"
+fi
 
 echo "Installing Hexchange runtime package and NautilusTrader extras..."
 "$UV_BIN" pip install \
