@@ -4,5 +4,7 @@
   "feeAdjustedReturnPct": 9.7,
   "maxDrawdownPct": 3.8,
   "trades": 28,
-  "executedAt": "2026-05-24T10:00:00.000Z"
+  "executedAt": "2026-05-24T10:00:00.000Z",
+  "runtimeSource": "nautilus_trader",
+  "dataSource": "Locally generated sample bars via NautilusTrader."
 }

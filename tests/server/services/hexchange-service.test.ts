@@ -65,10 +65,18 @@ describe("hexchange service persistence", () => {
 
     const backtest = await first.runStrategyBacktest("stock-momentum");
     expect(backtest.strategyId).toBe("stock-momentum");
+    expect(backtest.runtimeSource).toBeTruthy();
+
+    const updatedStrategy = first.listStrategies().find((item) => item.id === "stock-momentum");
+    expect(updatedStrategy?.validation.feeAdjustedReturnPct).toBe(backtest.feeAdjustedReturnPct);
+    expect(updatedStrategy?.validation.maxDrawdownPct).toBe(backtest.maxDrawdownPct);
 
     const second = await createHexchangeService(appDir);
     const engineStatus = await second.getEngineStatus();
+    const restoredStrategy = second.listStrategies().find((item) => item.id === "stock-momentum");
 
     expect(engineStatus.latestBacktests.some((item) => item.strategyId === "stock-momentum")).toBe(true);
+    expect(restoredStrategy?.validation.feeAdjustedReturnPct).toBe(backtest.feeAdjustedReturnPct);
+    expect(restoredStrategy?.validation.maxDrawdownPct).toBe(backtest.maxDrawdownPct);
   });
 });

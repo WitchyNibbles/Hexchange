@@ -47,6 +47,8 @@ describe("nautilus runtime smoke", () => {
     expect(backtest.status).toBe(200);
     expect(backtest.body.strategyId).toBe("stock-momentum");
     expect(backtest.body.runId).toContain("backtest-stock-momentum");
+    expect(backtest.body.runtimeSource).toBe(existsSync(bundledPython) ? "nautilus_trader" : "synthetic");
+    expect(backtest.body.dataSource).toBeTruthy();
 
     const session = await request(app).post("/api/strategies/stock-momentum/paper-session");
     expect(session.status).toBe(200);
@@ -56,5 +58,5 @@ describe("nautilus runtime smoke", () => {
     const events = await request(app).get("/api/events");
     expect(events.status).toBe(200);
     expect(events.body.some((event: { kind: string }) => event.kind === "paper_session")).toBe(true);
-  });
+  }, 10_000);
 });

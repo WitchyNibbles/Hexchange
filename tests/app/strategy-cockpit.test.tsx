@@ -40,6 +40,8 @@ describe("strategy cockpit", () => {
             maxDrawdownPct: 5.2,
             trades: 43,
             executedAt: "2026-05-24T08:00:00.000Z",
+            runtimeSource: "nautilus_trader",
+            dataSource: "Locally generated sample bars via NautilusTrader.",
           },
         },
       ],
@@ -67,6 +69,8 @@ describe("strategy cockpit", () => {
             maxDrawdownPct: 5.2,
             trades: 43,
             executedAt: "2026-05-24T08:00:00.000Z",
+            runtimeSource: "nautilus_trader",
+            dataSource: "Locally generated sample bars via NautilusTrader.",
           },
         ],
       },
@@ -87,12 +91,13 @@ describe("strategy cockpit", () => {
     });
 
     expect(screen.getByText(/engine mode/i)).toBeInTheDocument();
-    expect(screen.getByText(/nautilus/i)).toBeInTheDocument();
+    expect(screen.getByText(/^nautilus$/i)).toBeInTheDocument();
     expect(screen.getByText(/runtime health/i)).toBeInTheDocument();
     expect(screen.getByText(/^ready$/i)).toBeInTheDocument();
     expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
     expect(screen.getByText(/kraken/i)).toBeInTheDocument();
     expect(screen.getByText(/last backtest/i)).toBeInTheDocument();
+    expect(screen.getByText(/via nautilus_trader/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();
   });
 });

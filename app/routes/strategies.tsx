@@ -62,7 +62,7 @@ export function StrategiesRoute() {
               <strong>Last backtest</strong>
               <p>
                 {strategy.lastBacktest
-                  ? `${strategy.lastBacktest.feeAdjustedReturnPct.toFixed(2)}% return, ${strategy.lastBacktest.maxDrawdownPct.toFixed(2)}% drawdown, ${strategy.lastBacktest.trades} trades.`
+                  ? `${strategy.lastBacktest.feeAdjustedReturnPct.toFixed(2)}% return, ${strategy.lastBacktest.maxDrawdownPct.toFixed(2)}% drawdown, ${strategy.lastBacktest.trades} trades via ${strategy.lastBacktest.runtimeSource}.${strategy.lastBacktest.dataSource ? ` ${strategy.lastBacktest.dataSource}` : ""}`
                   : "No backtest has been recorded yet."}
               </p>
             </div>

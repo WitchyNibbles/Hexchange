@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createProcessRunner } from "../../../src/server/engine/process-runner";
 
 const tempDirs: string[] = [];
+const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
 
 async function createTempDir(): Promise<string> {
   const dir = await mkdtemp(path.join(os.tmpdir(), "hexchange-nautilus-runner-"));
@@ -27,11 +28,12 @@ describe("process runner", () => {
     const runsDir = await createTempDir();
     const runner = createProcessRunner();
     const projectDir = path.resolve(process.cwd(), "engine", "nautilus");
+    const pythonPath = existsSync(bundledPython) ? bundledPython : "python3";
 
     const result = await runner({
       command: "backtest",
       payload: {
-        pythonPath: "python3",
+        pythonPath,
         projectDir,
         runsDir,
         strategyId: "stock-momentum",
@@ -43,17 +45,26 @@ describe("process runner", () => {
     expect(result.ok).toBe(true);
     expect(result.artifactPath).toBeDefined();
     expect(existsSync(result.artifactPath!)).toBe(true);
+
+    const parsed = JSON.parse(readFileSync(result.artifactPath!, "utf8")) as {
+      runtimeSource?: string;
+      dataSource?: string | null;
+    };
+
+    expect(parsed.runtimeSource).toBe(existsSync(bundledPython) ? "nautilus_trader" : "synthetic");
+    expect(parsed.dataSource).toBeTruthy();
   });
 
   it("executes the local python cli for session lifecycle and status", async () => {
     const runsDir = await createTempDir();
     const runner = createProcessRunner();
     const projectDir = path.resolve(process.cwd(), "engine", "nautilus");
+    const pythonPath = existsSync(bundledPython) ? bundledPython : "python3";
 
     const start = await runner({
       command: "start-session",
       payload: {
-        pythonPath: "python3",
+        pythonPath,
         projectDir,
         runsDir,
         strategyId: "stock-momentum",
@@ -67,7 +78,7 @@ describe("process runner", () => {
     const status = await runner({
       command: "status",
       payload: {
-        pythonPath: "python3",
+        pythonPath,
         projectDir,
         runsDir,
       },

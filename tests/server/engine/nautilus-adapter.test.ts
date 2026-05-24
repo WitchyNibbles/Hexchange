@@ -29,6 +29,8 @@ describe("nautilus adapter", () => {
       maxDrawdownPct: 3.8,
       trades: 28,
       executedAt: "2026-05-24T10:00:00.000Z",
+      runtimeSource: "nautilus_trader",
+      dataSource: "Locally generated sample bars via NautilusTrader.",
     });
   });
 
@@ -53,6 +55,7 @@ describe("nautilus adapter", () => {
     expect(result.strategyId).toBe("crypto-breakout");
     expect(result.feeAdjustedReturnPct).toBeGreaterThan(0);
     expect(result.runId).toContain("backtest-crypto-breakout");
+    expect(result.runtimeSource).toBe("synthetic");
   });
 
   it("uses a runner artifact to start and stop managed paper sessions", async () => {

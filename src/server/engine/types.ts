@@ -14,6 +14,8 @@ export interface BacktestResult {
   maxDrawdownPct: number;
   trades: number;
   executedAt: string;
+  runtimeSource: "synthetic" | "nautilus_trader";
+  dataSource?: string | null;
 }
 
 export interface PaperSession {

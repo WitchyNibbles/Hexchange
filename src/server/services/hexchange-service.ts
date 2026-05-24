@@ -194,10 +194,18 @@ export class HexchangeService {
     });
 
     this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== strategyId)].slice(0, 10);
+    this.updateStrategy({
+      ...strategy,
+      validation: {
+        ...strategy.validation,
+        feeAdjustedReturnPct: result.feeAdjustedReturnPct,
+        maxDrawdownPct: result.maxDrawdownPct,
+      },
+    });
     await this.recordEvent({
       kind: "system",
       title: `${strategy.name} backtest completed`,
-      body: `Backtest return ${result.feeAdjustedReturnPct.toFixed(2)}% with drawdown ${result.maxDrawdownPct.toFixed(2)}%.`,
+      body: `Backtest return ${result.feeAdjustedReturnPct.toFixed(2)}% with drawdown ${result.maxDrawdownPct.toFixed(2)}% via ${result.runtimeSource}.`,
       severity: "info",
     });
     await this.persistState();

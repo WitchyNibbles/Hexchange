@@ -28,6 +28,8 @@ export class LeanAdapter implements EngineAdapter {
       maxDrawdownPct: request.market === "stock" ? 4.8 : 6.2,
       trades: request.market === "stock" ? 43 : 37,
       executedAt: new Date().toISOString(),
+      runtimeSource: "synthetic" as const,
+      dataSource: "Legacy seeded demo model.",
     };
     this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== request.strategyId)].slice(0, 10);
     return result;
