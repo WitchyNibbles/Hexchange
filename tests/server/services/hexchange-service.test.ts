@@ -36,6 +36,7 @@ describe("hexchange service persistence", () => {
       liveRolloutCapUsd: 750,
     });
     await first.engageKillSwitch("Persistence test halt");
+    expect(first.getManagedSession("stock-momentum")).toBeNull();
 
     const second = await createHexchangeService(appDir);
     const settings = second.getRiskSettings();

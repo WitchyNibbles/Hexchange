@@ -22,6 +22,9 @@ export interface PaperSession {
   sessionId: string;
   strategyId: string;
   startedAt: string;
+  lastHeartbeatAt?: string | null;
+  processId?: number | null;
+  runtimeSource?: "synthetic" | "nautilus_trader" | null;
 }
 
 export interface StrategyRuntimeStatus {

@@ -66,6 +66,15 @@ export function StrategiesRoute() {
                   : "No backtest has been recorded yet."}
               </p>
             </div>
+            {strategy.paperSession ? (
+              <div className="validation-report">
+                <strong>Paper session</strong>
+                <p>
+                  {strategy.paperSession.sessionId} · pid {strategy.paperSession.processId ?? "n/a"} · heartbeat{" "}
+                  {strategy.paperSession.lastHeartbeatAt ?? strategy.paperSession.startedAt}
+                </p>
+              </div>
+            ) : null}
             <div className="strategy-actions">
               <button
                 type="button"
@@ -82,8 +91,19 @@ export function StrategiesRoute() {
                   void postJson(`/api/strategies/${strategy.id}/paper-session`);
                 }}
               >
-                Start paper
+                {strategy.paperSessionActive ? "Paper running" : "Start paper"}
               </button>
+              {strategy.paperSessionActive ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    void fetch(`/api/strategies/${strategy.id}/paper-session`, { method: "DELETE" });
+                  }}
+                >
+                  Stop paper
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="secondary"

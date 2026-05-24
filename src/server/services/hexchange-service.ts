@@ -118,6 +118,7 @@ export class HexchangeService {
       signal: strategy.signal,
       validation: strategy.validation,
       paperSessionActive: strategy.paperSessionActive,
+      paperSession: this.managedSessions.get(strategy.id) ?? null,
       liveEligible: buildValidationReport(strategy).passed,
       validationReport: buildValidationReport(strategy).reasons,
       lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
@@ -265,6 +266,15 @@ export class HexchangeService {
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
+  async stopPaperSession(strategyId: string): Promise<StrategySummary> {
+    const session = this.managedSessions.get(strategyId);
+    if (session) {
+      await this.stopManagedSession(session.sessionId);
+    }
+
+    return this.listStrategies().find((item) => item.id === strategyId)!;
+  }
+
   async stopManagedSession(sessionId: string): Promise<void> {
     await this.engineAdapter.stopSession(sessionId);
 
@@ -309,6 +319,11 @@ export class HexchangeService {
   }
 
   async engageKillSwitch(reason: string): Promise<SystemStatus> {
+    const managedSessionIds = [...this.managedSessions.values()].map((session) => session.sessionId);
+    for (const sessionId of managedSessionIds) {
+      await this.stopManagedSession(sessionId);
+    }
+
     this.killSwitch.engage(reason);
     this.strategies = this.strategies.map((strategy) =>
       strategy.stage === "live" || strategy.stage === "candidate_live" || strategy.stage === "paper"

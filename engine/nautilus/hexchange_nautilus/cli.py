@@ -28,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     status = subcommands.add_parser("status")
     status.add_argument("--runs-dir", required=True)
 
+    worker = subcommands.add_parser("session-worker")
+    worker.add_argument("--strategy-id", required=True)
+    worker.add_argument("--runs-dir", required=True)
+
     return parser
 
 
@@ -44,6 +48,11 @@ def main() -> None:
     elif args.command == "stop-session":
         artifact_path = stop_session(args.strategy_id, args.runs_dir)
         result = CliResult(status="ok", message="Session stopped.", artifactPath=artifact_path)
+    elif args.command == "session-worker":
+        from .runners.session import session_worker
+
+        session_worker(args.strategy_id, args.runs_dir)
+        return
     else:
         artifact_path = runtime_status(args.runs_dir)
         result = CliResult(status="ok", message=f"Runtime ready for {args.runs_dir}.", artifactPath=artifact_path)

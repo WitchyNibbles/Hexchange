@@ -6,7 +6,7 @@ import type {
   StrategyValidationMetrics,
 } from "../server/domain/strategy";
 import type { EventLogRecord, TradeLogEntry } from "../server/domain/trade-log";
-import type { BacktestResult, EngineStatus as EngineStatusPayload } from "../server/engine/types";
+import type { BacktestResult, EngineStatus as EngineStatusPayload, PaperSession } from "../server/engine/types";
 
 export type AppMode = "research" | "paper" | "live" | "halted";
 
@@ -40,6 +40,7 @@ export interface StrategySummary {
   signal: SignalExplanation | null;
   validation: StrategyValidationMetrics;
   paperSessionActive: boolean;
+  paperSession: PaperSession | null;
   liveEligible: boolean;
   validationReport: string[];
   lastBacktest: BacktestResult | null;

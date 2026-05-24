@@ -114,36 +114,42 @@ export class NautilusAdapter implements EngineAdapter {
   }
 
   async getStrategyStatus(strategyId: string): Promise<StrategyRuntimeStatus> {
+    const runtimeStatus = await this.readRuntimeStatus();
+    if (runtimeStatus) {
+      const session = runtimeStatus.sessions.find((item) => item.strategyId === strategyId && item.alive !== false);
+      if (session) {
+        return {
+          strategyId,
+          state: session.state === "live" ? "live" : "paper",
+          lastHeartbeatAt: session.lastHeartbeatAt ?? session.startedAt ?? new Date().toISOString(),
+        };
+      }
+    }
+
     const session = this.sessions.get(strategyId);
     return {
       strategyId,
       state: session ? "paper" : "idle",
-      lastHeartbeatAt: session?.startedAt ?? new Date().toISOString(),
+      lastHeartbeatAt: session?.lastHeartbeatAt ?? session?.startedAt ?? new Date().toISOString(),
     };
   }
 
   async getEngineStatus(): Promise<EngineStatus> {
-    if (this.options.mode === "nautilus" && this.options.projectDir && existsSync(this.options.projectDir)) {
-      const result = await this.runner({
-        command: "status",
-        payload: {
-          pythonPath: this.options.pythonPath,
-          projectDir: this.options.projectDir,
-          runsDir: this.options.runsDir,
-        },
-      });
-
-      if (result.ok && result.artifactPath) {
-        const runtimeStatus = await parseRuntimeStatus(result.artifactPath);
-
-        return {
-          mode: this.options.mode,
-          available: true,
-          runtimeHealth: runtimeStatus.runtimeHealth,
-          runtimeDetails: runtimeStatus.nautilusInstalled
-            ? `nautilus_trader ${runtimeStatus.nautilusVersion ?? "installed"}`
-            : "nautilus_trader is not installed in the selected Python environment.",
-          venues: [
+    const runtimeStatus = await this.readRuntimeStatus();
+    if (runtimeStatus) {
+      return {
+        mode: this.options.mode,
+        available: true,
+        runtimeHealth: runtimeStatus.runtimeHealth,
+        runtimeDetails: runtimeStatus.nautilusInstalled
+          ? `nautilus_trader ${runtimeStatus.nautilusVersion ?? "installed"}`
+          : "nautilus_trader is not installed in the selected Python environment.",
+        venues:
+          runtimeStatus.venues?.map((venue) => ({
+            venue: venue.venue,
+            connected: venue.connected,
+            scope: venue.scope,
+          })) ?? [
             {
               venue: "interactive_brokers",
               connected: false,
@@ -155,9 +161,8 @@ export class NautilusAdapter implements EngineAdapter {
               scope: "crypto",
             },
           ],
-          latestBacktests: this.backtests,
-        };
-      }
+        latestBacktests: this.backtests,
+      };
     }
 
     return {
@@ -194,6 +199,27 @@ export class NautilusAdapter implements EngineAdapter {
 
   seedBacktests(backtests: BacktestResult[]): void {
     this.backtests = backtests;
+  }
+
+  private async readRuntimeStatus() {
+    if (!(this.options.mode === "nautilus" && this.options.projectDir && existsSync(this.options.projectDir))) {
+      return null;
+    }
+
+    const result = await this.runner({
+      command: "status",
+      payload: {
+        pythonPath: this.options.pythonPath,
+        projectDir: this.options.projectDir,
+        runsDir: this.options.runsDir,
+      },
+    });
+
+    if (!(result.ok && result.artifactPath)) {
+      return null;
+    }
+
+    return parseRuntimeStatus(result.artifactPath);
   }
 
   private buildSimulatedBacktest(request: BacktestRequest): BacktestResult {

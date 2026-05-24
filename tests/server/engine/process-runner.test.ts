@@ -75,6 +75,18 @@ describe("process runner", () => {
     expect(start.sessionId).toBe("paper-stock-momentum");
     expect(existsSync(start.artifactPath!)).toBe(true);
 
+    const startedSession = JSON.parse(readFileSync(start.artifactPath!, "utf8")) as {
+      processId?: number | null;
+      lastHeartbeatAt?: string | null;
+      runtimeSource?: string | null;
+      state?: string;
+    };
+
+    expect(startedSession.processId).toEqual(expect.any(Number));
+    expect(startedSession.lastHeartbeatAt).toBeTruthy();
+    expect(startedSession.state).toBe("paper");
+    expect(startedSession.runtimeSource).toBe(existsSync(bundledPython) ? "nautilus_trader" : "synthetic");
+
     const status = await runner({
       command: "status",
       payload: {
@@ -91,7 +103,7 @@ describe("process runner", () => {
       runtimeHealth: string;
       nautilusInstalled: boolean;
       nautilusVersion: string | null;
-      sessions: Array<{ strategyId: string; state: string }>;
+      sessions: Array<{ strategyId: string; state: string; alive?: boolean; processId?: number | null }>;
     };
 
     expect(["ready", "degraded"]).toContain(parsed.runtimeHealth);
@@ -100,7 +112,33 @@ describe("process runner", () => {
       expect(parsed.nautilusVersion).toMatch(/\d+\.\d+\.\d+/);
     }
     expect(parsed.sessions).toEqual(
-      expect.arrayContaining([expect.objectContaining({ strategyId: "stock-momentum", state: "paper" })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          strategyId: "stock-momentum",
+          state: "paper",
+          alive: true,
+          processId: expect.any(Number),
+        }),
+      ]),
     );
+
+    const stop = await runner({
+      command: "stop-session",
+      payload: {
+        pythonPath,
+        projectDir,
+        runsDir,
+        strategyId: "stock-momentum",
+      },
+    });
+
+    expect(stop.ok).toBe(true);
+    const stoppedSession = JSON.parse(readFileSync(stop.artifactPath!, "utf8")) as {
+      state?: string;
+      stoppedAt?: string | null;
+      alive?: boolean;
+    };
+    expect(stoppedSession.state).toBe("stopped");
+    expect(stoppedSession.stoppedAt).toBeTruthy();
   });
 });

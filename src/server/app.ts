@@ -52,6 +52,10 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.startPaperSession(getRouteParam(request.params.strategyId)));
   }));
 
+  app.delete("/api/strategies/:strategyId/paper-session", asyncRoute(async (request, response) => {
+    response.json(await service.stopPaperSession(getRouteParam(request.params.strategyId)));
+  }));
+
   app.post("/api/strategies/:strategyId/arm-live", asyncRoute(async (request, response) => {
     response.json(await service.armLiveStrategy(getRouteParam(request.params.strategyId)));
   }));

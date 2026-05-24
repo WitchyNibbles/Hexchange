@@ -8,5 +8,8 @@ export async function parsePaperSession(artifactPath: string): Promise<PaperSess
     sessionId: parsed.sessionId,
     strategyId: parsed.strategyId,
     startedAt: parsed.startedAt,
+    lastHeartbeatAt: parsed.lastHeartbeatAt ?? null,
+    processId: parsed.processId ?? null,
+    runtimeSource: parsed.runtimeSource ?? null,
   };
 }

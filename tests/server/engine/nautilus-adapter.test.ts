@@ -81,6 +81,9 @@ describe("nautilus adapter", () => {
       sessionId: "paper-stock-momentum",
       strategyId: "stock-momentum",
       startedAt: "2026-05-24T11:30:00.000Z",
+      lastHeartbeatAt: "2026-05-24T11:31:00.000Z",
+      processId: 4242,
+      runtimeSource: "nautilus_trader",
     });
 
     const status = await adapter.getStrategyStatus("stock-momentum");

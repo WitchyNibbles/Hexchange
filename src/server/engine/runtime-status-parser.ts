@@ -4,10 +4,21 @@ export interface RuntimeStatusArtifact {
   runtimeHealth: "ready" | "degraded" | "offline";
   nautilusInstalled: boolean;
   nautilusVersion: string | null;
+  venues?: Array<{
+    venue: "interactive_brokers" | "kraken";
+    connected: boolean;
+    scope: "stocks" | "crypto";
+    details?: string | null;
+  }>;
   sessions: Array<{
     sessionId: string | null;
     strategyId: string | null;
     state: string;
+    startedAt?: string | null;
+    lastHeartbeatAt?: string | null;
+    processId?: number | null;
+    alive?: boolean;
+    runtimeSource?: "synthetic" | "nautilus_trader" | null;
   }>;
   updatedAt: string;
 }

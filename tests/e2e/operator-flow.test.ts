@@ -82,5 +82,9 @@ describe("operator flow", () => {
     const reset = await request(app).post("/api/control/kill-switch/reset");
     expect(reset.status).toBe(200);
     expect(reset.body.killSwitchEngaged).toBe(false);
+
+    const stopPaper = await request(app).delete("/api/strategies/stock-momentum/paper-session");
+    expect(stopPaper.status).toBe(200);
+    expect(stopPaper.body.paperSessionActive).toBe(false);
   });
 });
