@@ -25,6 +25,7 @@ export interface PaperSession {
   lastHeartbeatAt?: string | null;
   processId?: number | null;
   runtimeSource?: "synthetic" | "nautilus_trader" | null;
+  executionMode?: "simulated" | "kraken_ready" | "ib_ready" | "dual_venue_ready" | null;
 }
 
 export interface StrategyRuntimeStatus {
@@ -37,6 +38,7 @@ export interface VenueConnectivity {
   venue: "interactive_brokers" | "kraken";
   connected: boolean;
   scope: "stocks" | "crypto";
+  details?: string | null;
 }
 
 export interface EngineStatus {

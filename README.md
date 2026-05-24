@@ -12,6 +12,7 @@ Hexchange is a local-first trading workstation for stocks and crypto. It is desi
 - promotion gates, kill switch, and live-armament policy
 - file-backed event log and trade journal for auditability
 - persistent control-center settings for notional, drawdown, and rollout caps
+- live readiness report that explains venue, runtime, and per-strategy blockers in plain language
 
 ## Quick start
 
@@ -53,9 +54,12 @@ Key variables:
 - `HEXCHANGE_NAUTILUS_PROJECT_DIR`
 - `HEXCHANGE_NAUTILUS_RUNS_DIR`
 - `IB_GATEWAY_HOST`, `IB_GATEWAY_PORT`, `IB_CLIENT_ID`
+- `IB_ACCOUNT_ID`
 - `KRAKEN_API_KEY`, `KRAKEN_API_SECRET`
 
 For the recommended local runtime bootstrap, see [engine/nautilus/README.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/engine/nautilus/README.md).
+
+Once the app is running, open the Control Center and use the live readiness panel or call `/api/control/live-readiness` to see exactly which runtime, venue, or strategy gates are still blocking real-money execution.
 
 ## Verification
 

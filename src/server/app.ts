@@ -80,6 +80,10 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(service.getRiskSettings());
   });
 
+  app.get("/api/control/live-readiness", asyncRoute(async (_request, response) => {
+    response.json(await service.getLiveReadinessReport());
+  }));
+
   app.patch("/api/control/settings", asyncRoute(async (request, response) => {
     response.json(await service.updateRiskSettings(request.body ?? {}));
   }));

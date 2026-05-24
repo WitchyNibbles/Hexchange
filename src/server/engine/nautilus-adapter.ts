@@ -149,16 +149,19 @@ export class NautilusAdapter implements EngineAdapter {
             venue: venue.venue,
             connected: venue.connected,
             scope: venue.scope,
+            details: venue.details ?? null,
           })) ?? [
             {
               venue: "interactive_brokers",
               connected: false,
               scope: "stocks",
+              details: "Runtime status unavailable.",
             },
             {
               venue: "kraken",
               connected: false,
               scope: "crypto",
+              details: "Runtime status unavailable.",
             },
           ],
         latestBacktests: this.backtests,
@@ -178,11 +181,13 @@ export class NautilusAdapter implements EngineAdapter {
           venue: "interactive_brokers",
           connected: false,
           scope: "stocks",
+          details: "Runtime configuration loaded. Status probe activates when the Nautilus project path is available.",
         },
         {
           venue: "kraken",
           connected: false,
           scope: "crypto",
+          details: "Runtime configuration loaded. Status probe activates when the Nautilus project path is available.",
         },
       ],
       latestBacktests: this.backtests,

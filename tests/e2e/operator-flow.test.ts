@@ -46,6 +46,17 @@ describe("operator flow", () => {
       ]),
     );
 
+    const initialReadiness = await request(app).get("/api/control/live-readiness");
+    expect(initialReadiness.status).toBe(200);
+    expect(initialReadiness.body.overallStatus).toBeDefined();
+    expect(initialReadiness.body.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "nautilus-runtime" }),
+        expect.objectContaining({ id: "interactive_brokers-connectivity" }),
+        expect.objectContaining({ id: "kraken-connectivity" }),
+      ]),
+    );
+
     const events = await request(app).get("/api/events");
     expect(events.status).toBe(200);
     expect(events.body[0]?.body).toMatch(/interactive brokers|kraken|nautilus/i);
@@ -66,6 +77,17 @@ describe("operator flow", () => {
     expect(armLive.status).toBe(200);
     expect(armLive.body.stage).toBe("live");
 
+    const midReadiness = await request(app).get("/api/control/live-readiness");
+    expect(midReadiness.status).toBe(200);
+    expect(midReadiness.body.strategies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          strategyId: "stock-momentum",
+          lastBacktestSource: "nautilus_trader",
+        }),
+      ]),
+    );
+
     const kill = await request(app)
       .post("/api/control/kill-switch")
       .send({ reason: "Test halt" });
@@ -83,8 +105,12 @@ describe("operator flow", () => {
     expect(reset.status).toBe(200);
     expect(reset.body.killSwitchEngaged).toBe(false);
 
+    const finalReadiness = await request(app).get("/api/control/live-readiness");
+    expect(finalReadiness.status).toBe(200);
+    expect(finalReadiness.body.summary).toMatch(/blocked|ready|resolve/i);
+
     const stopPaper = await request(app).delete("/api/strategies/stock-momentum/paper-session");
     expect(stopPaper.status).toBe(200);
     expect(stopPaper.body.paperSessionActive).toBe(false);
-  });
+  }, 15000);
 });

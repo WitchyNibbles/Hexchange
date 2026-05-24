@@ -105,5 +105,21 @@ describe("hexchange service persistence", () => {
 
     const armed = await service.armLiveStrategy("stock-momentum");
     expect(armed.stage).toBe("live");
+  }, 15_000);
+
+  it("builds a live readiness report with venue and strategy blockers", async () => {
+    const appDir = await createTempDir();
+    const service = await createHexchangeService(appDir);
+
+    const report = await service.getLiveReadinessReport();
+
+    expect(report.overallStatus).toBe("blocked");
+    expect(report.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "interactive_brokers-connectivity", status: "fail" }),
+        expect.objectContaining({ id: "kraken-connectivity", status: "fail" }),
+      ]),
+    );
+    expect(report.strategies.some((strategy) => strategy.blockers.length > 0)).toBe(true);
   });
 });

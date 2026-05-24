@@ -65,6 +65,7 @@ def stop_session(strategy_id: str, runs_dir: str) -> str:
         "lastHeartbeatAt": parsed.get("lastHeartbeatAt"),
         "processId": process_id,
         "runtimeSource": parsed.get("runtimeSource") or _runtime_source(),
+        "executionMode": parsed.get("executionMode") or _execution_mode(_build_venue_statuses()),
         "state": "stopped",
         "alive": False,
         "stoppedAt": datetime.now(timezone.utc).isoformat(),
@@ -111,6 +112,7 @@ def runtime_status(runs_dir: str) -> str:
                 "lastHeartbeatAt": last_heartbeat_at,
                 "processId": process_id,
                 "runtimeSource": parsed.get("runtimeSource"),
+                "executionMode": parsed.get("executionMode"),
                 "alive": alive and not stale,
             }
         )
@@ -136,6 +138,8 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
     started_at = datetime.now(timezone.utc).isoformat()
     process_id = os.getpid()
     runtime_source = _runtime_source()
+    venue_statuses = _build_venue_statuses()
+    execution_mode = _execution_mode(venue_statuses)
     running = True
 
     def handle_stop(_signum: int, _frame: object) -> None:
@@ -156,6 +160,7 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
                 "lastHeartbeatAt": now,
                 "processId": process_id,
                 "runtimeSource": runtime_source,
+                "executionMode": execution_mode,
                 "state": "paper",
                 "alive": True,
             },
@@ -171,6 +176,7 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
             "lastHeartbeatAt": datetime.now(timezone.utc).isoformat(),
             "processId": process_id,
             "runtimeSource": runtime_source,
+            "executionMode": execution_mode,
             "state": "stopped",
             "alive": False,
             "stoppedAt": datetime.now(timezone.utc).isoformat(),
@@ -282,3 +288,16 @@ def _build_venue_statuses() -> list[dict[str, Any]]:
             ),
         },
     ]
+
+
+def _execution_mode(venue_statuses: list[dict[str, Any]]) -> str:
+    ib_connected = any(item["venue"] == "interactive_brokers" and item["connected"] for item in venue_statuses)
+    kraken_connected = any(item["venue"] == "kraken" and item["connected"] for item in venue_statuses)
+
+    if ib_connected and kraken_connected:
+        return "dual_venue_ready"
+    if ib_connected:
+        return "ib_ready"
+    if kraken_connected:
+        return "kraken_ready"
+    return "simulated"

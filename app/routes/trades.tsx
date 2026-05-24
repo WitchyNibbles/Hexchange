@@ -1,7 +1,23 @@
 import { useEffect, useState } from "react";
-import { getEngineStatus, getPortfolio, getRiskSettings, getSystemStatus, getTrades, patchJson, postJson } from "../lib/api";
+import {
+  getEngineStatus,
+  getLiveReadinessReport,
+  getPortfolio,
+  getRiskSettings,
+  getSystemStatus,
+  getTrades,
+  patchJson,
+  postJson,
+} from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { EngineStatus, PortfolioSnapshot, RiskSettings, SystemStatus, TradeSummary } from "../../src/shared/contracts";
+import type {
+  EngineStatus,
+  LiveReadinessReport,
+  PortfolioSnapshot,
+  RiskSettings,
+  SystemStatus,
+  TradeSummary,
+} from "../../src/shared/contracts";
 
 const emptyPortfolio: PortfolioSnapshot = {
   positions: [],
@@ -37,12 +53,21 @@ const defaultEngineStatus: EngineStatus = {
   latestBacktests: [],
 };
 
+const defaultLiveReadiness: LiveReadinessReport = {
+  updatedAt: "",
+  overallStatus: "blocked",
+  summary: "Live readiness has not loaded yet.",
+  checks: [],
+  strategies: [],
+};
+
 export function TradesRoute() {
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const portfolio = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
   const riskSettings = usePollingJson<RiskSettings>(getRiskSettings, defaultRiskSettings);
   const status = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
   const engineStatus = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
+  const liveReadiness = usePollingJson<LiveReadinessReport>(getLiveReadinessReport, defaultLiveReadiness);
   const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
 
   useEffect(() => {
@@ -134,6 +159,28 @@ export function TradesRoute() {
             {engineStatus.venues.map((venue) => (
               <li key={venue.venue}>
                 {venue.venue.replaceAll("_", " ")} · {venue.scope} · {venue.connected ? "connected" : "offline"}
+                {venue.details ? ` · ${venue.details}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="validation-report">
+          <strong>Live readiness ritual</strong>
+          <p>
+            {liveReadiness.overallStatus} · {liveReadiness.summary}
+          </p>
+          <ul className="strategy-stats">
+            {liveReadiness.checks.map((check) => (
+              <li key={check.id}>
+                {check.label} · {check.status} · {check.summary}
+              </li>
+            ))}
+          </ul>
+          <ul className="strategy-stats">
+            {liveReadiness.strategies.map((strategy) => (
+              <li key={strategy.strategyId}>
+                {strategy.name} · {strategy.ready ? "ready" : "blocked"} ·{" "}
+                {strategy.blockers[0] ?? "Ready for guarded live rollout."}
               </li>
             ))}
           </ul>

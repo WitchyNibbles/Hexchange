@@ -5,8 +5,6 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
-
 from ..artifacts import write_json_artifact
 
 
@@ -114,10 +112,12 @@ def _run_nautilus_backtest(strategy_id: str, symbol: str, market: str) -> dict[s
     }
 
 
-def _build_stock_frame(symbol: str) -> pd.DataFrame:
+def _build_stock_frame(symbol: str) -> Any:
+    import pandas as pd
+
     base = pd.Timestamp("2024-01-01T00:00:00Z")
     price = 100.0 if symbol.upper() == "AAPL" else 80.0
-    rows: list[dict[str, float | pd.Timestamp]] = []
+    rows: list[dict[str, Any]] = []
 
     for minute in range(120):
         price += 0.25 if minute < 60 else -0.15
@@ -135,10 +135,12 @@ def _build_stock_frame(symbol: str) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("timestamp")
 
 
-def _build_crypto_frame() -> pd.DataFrame:
+def _build_crypto_frame() -> Any:
+    import pandas as pd
+
     base = pd.Timestamp("2024-01-01T00:00:00Z")
     price = 42_000.0
-    rows: list[dict[str, float | pd.Timestamp]] = []
+    rows: list[dict[str, Any]] = []
     phases = [(35, 110), (30, -190), (45, 140), (25, -85), (35, 120)]
     minute = 0
 
@@ -169,7 +171,7 @@ def _extract_total_return_pct(result: Any) -> float:
     return 0.0
 
 
-def _calculate_max_drawdown_pct(account_report: pd.DataFrame) -> float:
+def _calculate_max_drawdown_pct(account_report: Any) -> float:
     totals = [float(str(total).replace("_", "")) for total in account_report["total"].tolist()]
     if not totals:
         return 0.0

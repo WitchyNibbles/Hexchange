@@ -1,6 +1,7 @@
 import type {
   EventSummary,
   EngineStatus,
+  LiveReadinessReport,
   PortfolioSnapshot,
   RiskSettings,
   StrategySummary,
@@ -42,6 +43,10 @@ export function getPortfolio(): Promise<PortfolioSnapshot> {
 
 export function getRiskSettings(): Promise<RiskSettings> {
   return fetchJson("/api/control/settings");
+}
+
+export function getLiveReadinessReport(): Promise<LiveReadinessReport> {
+  return fetchJson("/api/control/live-readiness");
 }
 
 export async function postJson<T>(path: string, body?: Record<string, unknown>): Promise<T> {

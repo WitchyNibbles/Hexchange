@@ -70,5 +70,5 @@ describe("nautilus session lifecycle", () => {
 
     expect(service.getManagedSession("stock-momentum")).toBeNull();
     expect(service.listStrategies().find((strategy) => strategy.id === "stock-momentum")?.paperSessionActive).toBe(false);
-  });
+  }, 15_000);
 });

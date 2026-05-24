@@ -2,6 +2,7 @@ import path from "node:path";
 import type {
   EngineStatus,
   HealthPayload,
+  LiveReadinessReport,
   PortfolioSnapshot,
   RiskSettings,
   StrategySummary,
@@ -21,6 +22,7 @@ import { createEngineAdapter } from "../engine/engine-adapter";
 import type { BacktestResult, PaperSession } from "../engine/types";
 import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
+import { buildLiveReadinessReport } from "../live/live-readiness-report";
 import { KillSwitch } from "../risk/kill-switch";
 import { RiskEngine } from "../risk/risk-engine";
 import { RuntimeStateStore } from "../state/runtime-state-store";
@@ -162,6 +164,18 @@ export class HexchangeService {
       ...status,
       latestBacktests: this.backtests.length > 0 ? this.backtests : status.latestBacktests,
     };
+  }
+
+  async getLiveReadinessReport(): Promise<LiveReadinessReport> {
+    const engineStatus = await this.getEngineStatus();
+    return buildLiveReadinessReport({
+      engineStatus,
+      strategies: this.strategies,
+      backtests: this.backtests,
+      managedSessions: this.managedSessions,
+      riskSettings: this.getRiskSettings(),
+      killSwitchEngaged: this.killSwitch.getState().engaged,
+    });
   }
 
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {

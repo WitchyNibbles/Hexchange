@@ -11,5 +11,6 @@ export async function parsePaperSession(artifactPath: string): Promise<PaperSess
     lastHeartbeatAt: parsed.lastHeartbeatAt ?? null,
     processId: parsed.processId ?? null,
     runtimeSource: parsed.runtimeSource ?? null,
+    executionMode: parsed.executionMode ?? null,
   };
 }

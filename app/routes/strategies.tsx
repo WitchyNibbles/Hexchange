@@ -71,7 +71,8 @@ export function StrategiesRoute() {
                 <strong>Paper session</strong>
                 <p>
                   {strategy.paperSession.sessionId} · pid {strategy.paperSession.processId ?? "n/a"} · heartbeat{" "}
-                  {strategy.paperSession.lastHeartbeatAt ?? strategy.paperSession.startedAt}
+                  {strategy.paperSession.lastHeartbeatAt ?? strategy.paperSession.startedAt} · mode{" "}
+                  {strategy.paperSession.executionMode ?? "simulated"}
                 </p>
               </div>
             ) : null}

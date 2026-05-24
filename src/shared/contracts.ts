@@ -68,3 +68,32 @@ export interface RiskSettings {
 }
 
 export interface EngineStatus extends EngineStatusPayload {}
+
+export type ReadinessCheckStatus = "pass" | "warn" | "fail";
+
+export interface LiveReadinessCheck {
+  id: string;
+  label: string;
+  status: ReadinessCheckStatus;
+  summary: string;
+  details?: string | null;
+}
+
+export interface StrategyLiveReadiness {
+  strategyId: string;
+  name: string;
+  market: "stock" | "crypto";
+  stage: StrategyLifecycleStage;
+  ready: boolean;
+  blockers: string[];
+  lastBacktestSource: BacktestResult["runtimeSource"] | null;
+  paperSessionMode: PaperSession["executionMode"] | null;
+}
+
+export interface LiveReadinessReport {
+  updatedAt: string;
+  overallStatus: "ready" | "attention" | "blocked";
+  summary: string;
+  checks: LiveReadinessCheck[];
+  strategies: StrategyLiveReadiness[];
+}

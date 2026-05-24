@@ -84,6 +84,7 @@ describe("nautilus adapter", () => {
       lastHeartbeatAt: "2026-05-24T11:31:00.000Z",
       processId: 4242,
       runtimeSource: "nautilus_trader",
+      executionMode: "kraken_ready",
     });
 
     const status = await adapter.getStrategyStatus("stock-momentum");

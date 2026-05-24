@@ -37,6 +37,7 @@ describe("strategy cockpit", () => {
             lastHeartbeatAt: "2026-05-24T08:31:00.000Z",
             processId: 4242,
             runtimeSource: "nautilus_trader",
+            executionMode: "kraken_ready",
           },
           liveEligible: true,
           validationReport: ["strategy passed all promotion gates"],
@@ -102,12 +103,13 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/runtime health/i)).toBeInTheDocument();
     expect(screen.getByText(/^ready$/i)).toBeInTheDocument();
     expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
-    expect(screen.getByText(/kraken/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken .* crypto .* connected/i)).toBeInTheDocument();
     expect(screen.getByText(/last backtest/i)).toBeInTheDocument();
     expect(screen.getByText(/via nautilus_trader/i)).toBeInTheDocument();
     expect(screen.getByText(/paper session/i)).toBeInTheDocument();
     expect(screen.getByText(/paper-stock-momentum/i)).toBeInTheDocument();
     expect(screen.getByText(/pid 4242/i)).toBeInTheDocument();
+    expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop paper/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();
   });

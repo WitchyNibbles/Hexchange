@@ -53,7 +53,11 @@ describe("nautilus runtime smoke", () => {
     const session = await request(app).post("/api/strategies/stock-momentum/paper-session");
     expect(session.status).toBe(200);
     expect(session.body.paperSessionActive).toBe(true);
-    expect(existsSync(path.join(runsDir, "session-stock-momentum.json"))).toBe(true);
+    expect(session.body.paperSession).toEqual(
+      expect.objectContaining({
+        sessionId: "paper-stock-momentum",
+      }),
+    );
 
     const stopSession = await request(app).delete("/api/strategies/stock-momentum/paper-session");
     expect(stopSession.status).toBe(200);

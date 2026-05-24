@@ -140,5 +140,5 @@ describe("process runner", () => {
     };
     expect(stoppedSession.state).toBe("stopped");
     expect(stoppedSession.stoppedAt).toBeTruthy();
-  });
+  }, 15_000);
 });

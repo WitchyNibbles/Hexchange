@@ -19,6 +19,7 @@ export interface RuntimeStatusArtifact {
     processId?: number | null;
     alive?: boolean;
     runtimeSource?: "synthetic" | "nautilus_trader" | null;
+    executionMode?: "simulated" | "kraken_ready" | "ib_ready" | "dual_venue_ready" | null;
   }>;
   updatedAt: string;
 }
