@@ -41,6 +41,8 @@ export interface StrategySummary {
   validation: StrategyValidationMetrics;
   paperSessionActive: boolean;
   paperSession: PaperSession | null;
+  deploymentMode: "simulation_only" | "kraken_live_candidate";
+  operatorWarning: string | null;
   liveEligible: boolean;
   validationReport: string[];
   lastBacktest: BacktestResult | null;
@@ -84,7 +86,9 @@ export interface StrategyLiveReadiness {
   name: string;
   market: "stock" | "crypto";
   stage: StrategyLifecycleStage;
+  deploymentMode: "simulation_only" | "kraken_live_candidate";
   ready: boolean;
+  blocking: boolean;
   blockers: string[];
   lastBacktestSource: BacktestResult["runtimeSource"] | null;
   paperSessionMode: PaperSession["executionMode"] | null;

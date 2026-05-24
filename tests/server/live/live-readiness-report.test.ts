@@ -72,13 +72,56 @@ const stockSession: PaperSession = {
   executionMode: "dual_venue_ready",
 };
 
+const cryptoStrategy: StrategyState = {
+  id: "crypto-breakout",
+  name: "BTC Lunar Breakout",
+  market: "crypto",
+  symbol: "BTCUSD",
+  stage: "paper",
+  signal: null,
+  validation: {
+    sampleSize: 48,
+    feeAdjustedReturnPct: 14.9,
+    maxDrawdownPct: 7.8,
+    profitFactor: 1.7,
+    sharpeRatio: 1.26,
+    slippageBps: 18,
+    paperDriftPct: 3.4,
+  },
+  paperSessionActive: true,
+};
+
+const cryptoBacktest: BacktestResult = {
+  strategyId: "crypto-breakout",
+  runId: "backtest-crypto-breakout",
+  feeAdjustedReturnPct: 14.9,
+  maxDrawdownPct: 7.8,
+  trades: 37,
+  executedAt: "2026-05-24T08:00:00.000Z",
+  runtimeSource: "nautilus_trader",
+  dataSource: "Locally generated sample bars via NautilusTrader.",
+};
+
+const cryptoSession: PaperSession = {
+  sessionId: "paper-crypto-breakout",
+  strategyId: "crypto-breakout",
+  startedAt: "2026-05-24T08:30:00.000Z",
+  lastHeartbeatAt: "2026-05-24T08:31:00.000Z",
+  processId: 5252,
+  runtimeSource: "nautilus_trader",
+  executionMode: "kraken_ready",
+};
+
 describe("live readiness report", () => {
-  it("marks the platform ready when venues, runtime, and strategy evidence are all in place", () => {
+  it("marks the crypto platform ready while keeping stocks simulation-only", () => {
     const report = buildLiveReadinessReport({
       engineStatus: baseEngineStatus,
-      strategies: [stockStrategy],
-      backtests: [stockBacktest],
-      managedSessions: new Map([[stockStrategy.id, stockSession]]),
+      strategies: [stockStrategy, cryptoStrategy],
+      backtests: [stockBacktest, cryptoBacktest],
+      managedSessions: new Map([
+        [stockStrategy.id, stockSession],
+        [cryptoStrategy.id, cryptoSession],
+      ]),
       riskSettings: baseRiskSettings,
       killSwitchEngaged: false,
     });
@@ -87,14 +130,25 @@ describe("live readiness report", () => {
     expect(report.checks.every((check) => check.status === "pass")).toBe(true);
     expect(report.strategies[0]).toMatchObject({
       strategyId: "stock-momentum",
-      ready: true,
-      blockers: [],
+      deploymentMode: "simulation_only",
+      ready: false,
+      blocking: false,
+      blockers: ["Simulation only: stock execution is disabled until a real stock broker is added."],
       paperSessionMode: "dual_venue_ready",
+      lastBacktestSource: "nautilus_trader",
+    });
+    expect(report.strategies[1]).toMatchObject({
+      strategyId: "crypto-breakout",
+      deploymentMode: "kraken_live_candidate",
+      ready: true,
+      blocking: false,
+      blockers: [],
+      paperSessionMode: "kraken_ready",
       lastBacktestSource: "nautilus_trader",
     });
   });
 
-  it("surfaces platform and strategy blockers when venues or safety rails are missing", () => {
+  it("surfaces Kraken and safety blockers while leaving stock simulation non-blocking", () => {
     const report = buildLiveReadinessReport({
       engineStatus: {
         ...baseEngineStatus,
@@ -114,7 +168,7 @@ describe("live readiness report", () => {
           },
         ],
       },
-      strategies: [{ ...stockStrategy, paperSessionActive: false }],
+      strategies: [{ ...stockStrategy, paperSessionActive: false }, { ...cryptoStrategy, paperSessionActive: false }],
       backtests: [],
       managedSessions: new Map<string, PaperSession>(),
       riskSettings: { ...baseRiskSettings, liveRolloutCapUsd: 2500 },
@@ -125,18 +179,23 @@ describe("live readiness report", () => {
     expect(report.checks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "nautilus-runtime", status: "warn" }),
-        expect.objectContaining({ id: "interactive_brokers-connectivity", status: "fail" }),
+        expect.objectContaining({ id: "interactive_brokers-connectivity", status: "pass" }),
         expect.objectContaining({ id: "kraken-connectivity", status: "fail" }),
         expect.objectContaining({ id: "kill-switch", status: "fail" }),
         expect.objectContaining({ id: "live-rollout-cap", status: "fail" }),
       ]),
     );
-    expect(report.strategies[0].blockers).toEqual(
+    expect(report.strategies[0]).toMatchObject({
+      deploymentMode: "simulation_only",
+      blocking: false,
+      blockers: ["Simulation only: stock execution is disabled until a real stock broker is added."],
+    });
+    expect(report.strategies[1].blockers).toEqual(
       expect.arrayContaining([
         "Run a real Nautilus backtest first.",
         "Start an active paper session first.",
         "Reset the kill switch before arming live.",
-        "Interactive Brokers must be connected for stock execution.",
+        "Kraken must be connected for crypto execution.",
       ]),
     );
   });

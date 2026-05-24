@@ -5,8 +5,8 @@ import type { BacktestResult } from "../../../src/server/engine/types";
 
 describe("live trading controller", () => {
   const realBacktest: BacktestResult = {
-    strategyId: "stock-momentum",
-    runId: "backtest-stock-momentum-real",
+    strategyId: "crypto-breakout",
+    runId: "backtest-crypto-breakout-real",
     feeAdjustedReturnPct: 10,
     maxDrawdownPct: 4,
     trades: 12,
@@ -18,10 +18,10 @@ describe("live trading controller", () => {
   it("arms validated strategies for live trading", () => {
     const controller = new LiveTradingController();
     const strategy: StrategyState = {
-      id: "stock-momentum",
-      name: "AAPL Trend Familiar",
-      market: "stock",
-      symbol: "AAPL",
+      id: "crypto-breakout",
+      name: "BTC Lunar Breakout",
+      market: "crypto",
+      symbol: "BTCUSD",
       stage: "paper",
       signal: null,
       validation: {
@@ -42,6 +42,30 @@ describe("live trading controller", () => {
   it("rejects live armament without a real nautilus backtest", () => {
     const controller = new LiveTradingController();
     const strategy: StrategyState = {
+      id: "crypto-breakout",
+      name: "BTC Lunar Breakout",
+      market: "crypto",
+      symbol: "BTCUSD",
+      stage: "paper",
+      signal: null,
+      validation: {
+        sampleSize: 48,
+        feeAdjustedReturnPct: 10,
+        maxDrawdownPct: 4,
+        profitFactor: 1.5,
+        sharpeRatio: 1.2,
+        slippageBps: 12,
+        paperDriftPct: 2,
+      },
+      paperSessionActive: true,
+    };
+
+    expect(() => controller.armStrategy(strategy, null)).toThrow(/real nautilus backtest/i);
+  });
+
+  it("rejects stock strategies because they are simulation-only", () => {
+    const controller = new LiveTradingController();
+    const strategy: StrategyState = {
       id: "stock-momentum",
       name: "AAPL Trend Familiar",
       market: "stock",
@@ -60,6 +84,6 @@ describe("live trading controller", () => {
       paperSessionActive: true,
     };
 
-    expect(() => controller.armStrategy(strategy, null)).toThrow(/real nautilus backtest/i);
+    expect(() => controller.armStrategy(strategy, realBacktest)).toThrow(/simulation-only/i);
   });
 });

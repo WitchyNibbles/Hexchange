@@ -59,6 +59,10 @@ export function StrategiesRoute() {
               <p>{strategy.validationReport.join(" ")}</p>
             </div>
             <div className="validation-report">
+              <strong>{strategy.market === "crypto" ? "Deployment track" : "Execution policy"}</strong>
+              <p>{strategy.operatorWarning ?? "No operator warnings."}</p>
+            </div>
+            <div className="validation-report">
               <strong>Last backtest</strong>
               <p>
                 {strategy.lastBacktest
@@ -68,7 +72,7 @@ export function StrategiesRoute() {
             </div>
             {strategy.paperSession ? (
               <div className="validation-report">
-                <strong>Paper session</strong>
+                <strong>{strategy.market === "crypto" ? "Kraken paper session" : "Simulation session"}</strong>
                 <p>
                   {strategy.paperSession.sessionId} · pid {strategy.paperSession.processId ?? "n/a"} · heartbeat{" "}
                   {strategy.paperSession.lastHeartbeatAt ?? strategy.paperSession.startedAt} · mode{" "}
@@ -92,7 +96,13 @@ export function StrategiesRoute() {
                   void postJson(`/api/strategies/${strategy.id}/paper-session`);
                 }}
               >
-                {strategy.paperSessionActive ? "Paper running" : "Start paper"}
+                {strategy.paperSessionActive
+                  ? strategy.market === "crypto"
+                    ? "Kraken paper running"
+                    : "Simulation running"
+                  : strategy.market === "crypto"
+                    ? "Start Kraken paper"
+                    : "Start simulation"}
               </button>
               {strategy.paperSessionActive ? (
                 <button
@@ -102,7 +112,7 @@ export function StrategiesRoute() {
                     void fetch(`/api/strategies/${strategy.id}/paper-session`, { method: "DELETE" });
                   }}
                 >
-                  Stop paper
+                  {strategy.market === "crypto" ? "Stop Kraken paper" : "Stop simulation"}
                 </button>
               ) : null}
               <button
@@ -113,7 +123,7 @@ export function StrategiesRoute() {
                 }}
                 disabled={!strategy.liveEligible}
               >
-                Arm live
+                {strategy.deploymentMode === "simulation_only" ? "Simulation only" : "Arm Kraken live"}
               </button>
             </div>
           </article>

@@ -179,7 +179,8 @@ export function TradesRoute() {
           <ul className="strategy-stats">
             {liveReadiness.strategies.map((strategy) => (
               <li key={strategy.strategyId}>
-                {strategy.name} · {strategy.ready ? "ready" : "blocked"} ·{" "}
+                {strategy.name} ·{" "}
+                {strategy.deploymentMode === "simulation_only" ? "simulation only" : strategy.ready ? "ready" : "blocked"} ·{" "}
                 {strategy.blockers[0] ?? "Ready for guarded live rollout."}
               </li>
             ))}

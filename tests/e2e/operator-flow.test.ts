@@ -35,7 +35,7 @@ describe("operator flow", () => {
     await rm(runsDir, { recursive: true, force: true });
   });
 
-  it("starts paper trading, arms live mode, and halts via kill switch", async () => {
+  it("starts paper trading, arms crypto live mode, and halts via kill switch", async () => {
     const engineStatus = await request(app).get("/api/engine/status");
     expect(engineStatus.status).toBe(200);
     expect(engineStatus.body.mode).toBeDefined();
@@ -61,19 +61,23 @@ describe("operator flow", () => {
     expect(events.status).toBe(200);
     expect(events.body[0]?.body).toMatch(/interactive brokers|kraken|nautilus/i);
 
-    const backtest = await request(app).post("/api/strategies/stock-momentum/backtest");
+    const backtest = await request(app).post("/api/strategies/crypto-breakout/backtest");
     expect(backtest.status).toBe(200);
-    expect(backtest.body.strategyId).toBe("stock-momentum");
+    expect(backtest.body.strategyId).toBe("crypto-breakout");
 
     const initialSettings = await request(app).get("/api/control/settings");
     expect(initialSettings.status).toBe(200);
     expect(initialSettings.body.maxPositionNotionalUsd).toBeGreaterThan(0);
 
-    const startPaper = await request(app).post("/api/strategies/stock-momentum/paper-session");
+    const startPaper = await request(app).post("/api/strategies/crypto-breakout/paper-session");
     expect(startPaper.status).toBe(200);
     expect(startPaper.body.stage).toBe("paper");
 
-    const armLive = await request(app).post("/api/strategies/stock-momentum/arm-live");
+    const stockLiveAttempt = await request(app).post("/api/strategies/stock-momentum/arm-live");
+    expect(stockLiveAttempt.status).toBe(400);
+    expect(stockLiveAttempt.body.error).toMatch(/simulation-only/i);
+
+    const armLive = await request(app).post("/api/strategies/crypto-breakout/arm-live");
     expect(armLive.status).toBe(200);
     expect(armLive.body.stage).toBe("live");
 
@@ -82,7 +86,7 @@ describe("operator flow", () => {
     expect(midReadiness.body.strategies).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          strategyId: "stock-momentum",
+          strategyId: "crypto-breakout",
           lastBacktestSource: "nautilus_trader",
         }),
       ]),
@@ -109,7 +113,7 @@ describe("operator flow", () => {
     expect(finalReadiness.status).toBe(200);
     expect(finalReadiness.body.summary).toMatch(/blocked|ready|resolve/i);
 
-    const stopPaper = await request(app).delete("/api/strategies/stock-momentum/paper-session");
+    const stopPaper = await request(app).delete("/api/strategies/crypto-breakout/paper-session");
     expect(stopPaper.status).toBe(200);
     expect(stopPaper.body.paperSessionActive).toBe(false);
   }, 15000);

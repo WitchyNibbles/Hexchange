@@ -18,7 +18,7 @@ describe("trades control center", () => {
       "/api/control/live-readiness": {
         updatedAt: "2026-05-24T12:00:00.000Z",
         overallStatus: "blocked",
-        summary: "1 strategy is still blocked. Resolve the failing venue, runtime, or safety checks before using real funds.",
+        summary: "1 strategy is still blocking live rollout. 1 stock strategy remains simulation-only. Resolve the failing runtime, Kraken, or safety checks before using real funds.",
         checks: [
           {
             id: "nautilus-runtime",
@@ -29,14 +29,14 @@ describe("trades control center", () => {
           {
             id: "interactive_brokers-connectivity",
             label: "Interactive Brokers",
-            status: "fail",
-            summary: "Interactive Brokers is not ready for live execution.",
+            status: "pass",
+            summary: "Interactive Brokers is optional for now because stock strategies are simulation-only.",
           },
           {
             id: "kraken-connectivity",
             label: "Kraken",
-            status: "pass",
-            summary: "Kraken is connected and ready.",
+            status: "fail",
+            summary: "Kraken is not ready for live execution.",
           },
         ],
         strategies: [
@@ -45,8 +45,10 @@ describe("trades control center", () => {
             name: "AAPL Trend Familiar",
             market: "stock",
             stage: "paper",
+            deploymentMode: "simulation_only",
             ready: false,
-            blockers: ["Interactive Brokers must be connected for stock execution."],
+            blocking: false,
+            blockers: ["Simulation only: stock execution is disabled until a real stock broker is added."],
             lastBacktestSource: "nautilus_trader",
             paperSessionMode: "kraken_ready",
           },
@@ -104,10 +106,10 @@ describe("trades control center", () => {
     expect(screen.getAllByText(/Daily loss threshold/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/engine venue posture/i)).toBeInTheDocument();
     expect(screen.getByText(/live readiness ritual/i)).toBeInTheDocument();
-    expect(screen.getByText(/kraken is connected and ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken is not ready for live execution/i)).toBeInTheDocument();
     expect(screen.getByText(/credentials loaded for kraken adapter/i)).toBeInTheDocument();
-    expect(screen.getByText(/interactive brokers is not ready for live execution/i)).toBeInTheDocument();
-    expect(screen.getByText(/interactive brokers must be connected for stock execution/i)).toBeInTheDocument();
+    expect(screen.getByText(/interactive brokers is optional for now because stock strategies are simulation-only/i)).toBeInTheDocument();
+    expect(screen.getByText(/simulation only: stock execution is disabled until a real stock broker is added/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset kill switch/i })).toBeInTheDocument();
   });
 });

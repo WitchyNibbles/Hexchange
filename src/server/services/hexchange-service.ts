@@ -105,26 +105,37 @@ export class HexchangeService {
   }
 
   listStrategies(): StrategySummary[] {
-    return this.strategies.map((strategy) => ({
-      id: strategy.id,
-      name: strategy.name,
-      market: strategy.market,
-      symbol: strategy.symbol,
-      stage: strategy.stage,
-      currentActivity:
-        strategy.stage === "live"
-          ? "autonomous live execution armed"
-          : strategy.paperSessionActive
-            ? "paper session active"
-            : "awaiting operator action",
-      signal: strategy.signal,
-      validation: strategy.validation,
-      paperSessionActive: strategy.paperSessionActive,
-      paperSession: this.managedSessions.get(strategy.id) ?? null,
-      liveEligible: buildValidationReport(strategy).passed,
-      validationReport: buildValidationReport(strategy).reasons,
-      lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
-    }));
+    return this.strategies.map((strategy) => {
+      const simulationOnly = strategy.market === "stock";
+      const validation = buildValidationReport(strategy);
+
+      return {
+        id: strategy.id,
+        name: strategy.name,
+        market: strategy.market,
+        symbol: strategy.symbol,
+        stage: strategy.stage,
+        currentActivity:
+          strategy.stage === "live"
+            ? "autonomous live execution armed"
+            : strategy.paperSessionActive
+              ? strategy.market === "crypto"
+                ? "kraken paper validation active"
+                : "simulation session active"
+              : "awaiting operator action",
+        signal: strategy.signal,
+        validation: strategy.validation,
+        paperSessionActive: strategy.paperSessionActive,
+        paperSession: this.managedSessions.get(strategy.id) ?? null,
+        deploymentMode: simulationOnly ? "simulation_only" : "kraken_live_candidate",
+        operatorWarning: simulationOnly
+          ? "Simulation only: stock execution is disabled until a real stock broker is added."
+          : "Kraken is the only venue that can progress from paper validation to live trading right now.",
+        liveEligible: !simulationOnly && validation.passed,
+        validationReport: validation.reasons,
+        lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
+      };
+    });
   }
 
   getPortfolioSnapshot(): PortfolioSnapshot {
@@ -444,7 +455,9 @@ export class HexchangeService {
 
     const paper = this.strategies.find((strategy) => strategy.paperSessionActive);
     if (paper) {
-      return `${paper.name} is paper trading ${paper.symbol}.`;
+      return paper.market === "crypto"
+        ? `${paper.name} is running Kraken paper validation on ${paper.symbol}.`
+        : `${paper.name} is running in stock simulation mode on ${paper.symbol}.`;
     }
 
     return "Scanning seeded market states and waiting for operator action.";

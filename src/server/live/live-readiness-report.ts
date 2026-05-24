@@ -48,9 +48,23 @@ function buildVenueCheck(
   engineStatus: EngineStatus,
   venueName: "interactive_brokers" | "kraken",
   label: string,
+  options?: {
+    optional?: boolean;
+    optionalSummary?: string;
+  },
 ): LiveReadinessCheck {
   const venue = engineStatus.venues.find((entry) => entry.venue === venueName);
   if (!venue || !venue.connected) {
+    if (options?.optional) {
+      return {
+        id: `${venueName}-connectivity`,
+        label,
+        status: "pass",
+        summary: options.optionalSummary ?? `${label} is not configured yet.`,
+        details: venue?.details ?? `The ${label} adapter has not reported a live-ready connection.`,
+      };
+    }
+
     return {
       id: `${venueName}-connectivity`,
       label,
@@ -116,6 +130,22 @@ function buildStrategyReadiness(
   const validation = buildValidationReport(strategy);
   const lastBacktest = backtests.find((item) => item.strategyId === strategy.id) ?? null;
   const paperSession = managedSessions.get(strategy.id) ?? null;
+  const deploymentMode = strategy.market === "stock" ? "simulation_only" : "kraken_live_candidate";
+
+  if (strategy.market === "stock") {
+    return {
+      strategyId: strategy.id,
+      name: strategy.name,
+      market: strategy.market,
+      stage: strategy.stage,
+      deploymentMode,
+      ready: false,
+      blocking: false,
+      blockers: ["Simulation only: stock execution is disabled until a real stock broker is added."],
+      lastBacktestSource: lastBacktest?.runtimeSource ?? null,
+      paperSessionMode: paperSession?.executionMode ?? null,
+    };
+  }
 
   if (!validation.passed) {
     blockers.push(...validation.reasons);
@@ -133,14 +163,9 @@ function buildStrategyReadiness(
     blockers.push("Reset the kill switch before arming live.");
   }
 
-  const expectedVenue = strategy.market === "stock" ? "interactive_brokers" : "kraken";
-  const venue = engineStatus.venues.find((item) => item.venue === expectedVenue);
+  const venue = engineStatus.venues.find((item) => item.venue === "kraken");
   if (!venue?.connected) {
-    blockers.push(
-      strategy.market === "stock"
-        ? "Interactive Brokers must be connected for stock execution."
-        : "Kraken must be connected for crypto execution.",
-    );
+    blockers.push("Kraken must be connected for crypto execution.");
   }
 
   return {
@@ -148,7 +173,9 @@ function buildStrategyReadiness(
     name: strategy.name,
     market: strategy.market,
     stage: strategy.stage,
+    deploymentMode,
     ready: blockers.length === 0,
+    blocking: blockers.length > 0,
     blockers,
     lastBacktestSource: lastBacktest?.runtimeSource ?? null,
     paperSessionMode: paperSession?.executionMode ?? null,
@@ -158,7 +185,10 @@ function buildStrategyReadiness(
 export function buildLiveReadinessReport(input: BuildLiveReadinessReportInput): LiveReadinessReport {
   const checks = [
     buildRuntimeCheck(input.engineStatus),
-    buildVenueCheck(input.engineStatus, "interactive_brokers", "Interactive Brokers"),
+    buildVenueCheck(input.engineStatus, "interactive_brokers", "Interactive Brokers", {
+      optional: true,
+      optionalSummary: "Interactive Brokers is optional for now because stock strategies are simulation-only.",
+    }),
     buildVenueCheck(input.engineStatus, "kraken", "Kraken"),
     buildKillSwitchCheck(input.killSwitchEngaged),
     buildRolloutCapCheck(input.riskSettings),
@@ -177,7 +207,8 @@ export function buildLiveReadinessReport(input: BuildLiveReadinessReportInput): 
   const failedChecks = checks.filter((check) => check.status === "fail").length;
   const warnedChecks = checks.filter((check) => check.status === "warn").length;
   const readyStrategies = strategies.filter((strategy) => strategy.ready).length;
-  const blockedStrategies = strategies.length - readyStrategies;
+  const blockedStrategies = strategies.filter((strategy) => strategy.blocking).length;
+  const simulationOnlyStrategies = strategies.filter((strategy) => strategy.deploymentMode === "simulation_only").length;
 
   const overallStatus =
     failedChecks > 0 || blockedStrategies > 0 ? "blocked" : warnedChecks > 0 ? "attention" : "ready";
@@ -185,7 +216,7 @@ export function buildLiveReadinessReport(input: BuildLiveReadinessReportInput): 
   const summary =
     overallStatus === "ready"
       ? `All global gates pass. ${readyStrategies} strategy${readyStrategies === 1 ? " is" : "ies are"} ready for guarded live rollout.`
-      : `${blockedStrategies} strategy${blockedStrategies === 1 ? " is" : "ies are"} still blocked. Resolve the failing venue, runtime, or safety checks before using real funds.`;
+      : `${blockedStrategies} ${blockedStrategies === 1 ? "strategy is" : "strategies are"} still blocking live rollout. ${simulationOnlyStrategies > 0 ? `${simulationOnlyStrategies} ${simulationOnlyStrategies === 1 ? "stock strategy remains" : "stock strategies remain"} simulation-only.` : ""} Resolve the failing runtime, Kraken, or safety checks before using real funds.`;
 
   return {
     updatedAt: new Date().toISOString(),

@@ -12,6 +12,14 @@ export function evaluateLiveArmamentPolicy(
   strategy: StrategyState,
   lastBacktest: BacktestResult | null,
 ): LiveArmamentDecision {
+  if (strategy.market === "stock") {
+    return {
+      allowed: false,
+      reason: "Stock execution is simulation-only until a real stock broker is added.",
+      notionalCapUsd: 0,
+    };
+  }
+
   const promotion = evaluatePromotionGates(strategy.validation);
   if (!promotion.passed) {
     return {

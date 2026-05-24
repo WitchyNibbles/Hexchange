@@ -39,7 +39,9 @@ describe("strategy cockpit", () => {
             runtimeSource: "nautilus_trader",
             executionMode: "kraken_ready",
           },
-          liveEligible: true,
+          deploymentMode: "simulation_only",
+          operatorWarning: "Simulation only: stock execution is disabled until a real stock broker is added.",
+          liveEligible: false,
           validationReport: ["strategy passed all promotion gates"],
           lastBacktest: {
             strategyId: "stock-momentum",
@@ -106,11 +108,14 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/kraken .* crypto .* connected/i)).toBeInTheDocument();
     expect(screen.getByText(/last backtest/i)).toBeInTheDocument();
     expect(screen.getByText(/via nautilus_trader/i)).toBeInTheDocument();
-    expect(screen.getByText(/paper session/i)).toBeInTheDocument();
+    expect(screen.getByText(/execution policy/i)).toBeInTheDocument();
+    expect(screen.getByText(/simulation only: stock execution is disabled until a real stock broker is added/i)).toBeInTheDocument();
     expect(screen.getByText(/paper-stock-momentum/i)).toBeInTheDocument();
     expect(screen.getByText(/pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /stop paper/i })).toBeInTheDocument();
+    expect(screen.getByText(/simulation session/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /stop simulation/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /simulation only/i })).toBeDisabled();
   });
 });

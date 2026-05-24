@@ -97,14 +97,36 @@ describe("hexchange service persistence", () => {
 
     const service = await createHexchangeService(appDir);
 
-    await service.startPaperSession("stock-momentum");
+    await service.startPaperSession("crypto-breakout");
 
-    await expect(service.armLiveStrategy("stock-momentum")).rejects.toThrow(/real nautilus backtest/i);
+    await expect(service.armLiveStrategy("crypto-breakout")).rejects.toThrow(/real nautilus backtest/i);
+
+    await service.runStrategyBacktest("crypto-breakout");
+
+    const armed = await service.armLiveStrategy("crypto-breakout");
+    expect(armed.stage).toBe("live");
+  }, 15_000);
+
+  it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = await createHexchangeService(appDir);
 
     await service.runStrategyBacktest("stock-momentum");
+    await service.startPaperSession("stock-momentum");
 
-    const armed = await service.armLiveStrategy("stock-momentum");
-    expect(armed.stage).toBe("live");
+    await expect(service.armLiveStrategy("stock-momentum")).rejects.toThrow(/simulation-only/i);
+
+    const strategy = service.listStrategies().find((item) => item.id === "stock-momentum");
+    expect(strategy?.deploymentMode).toBe("simulation_only");
+    expect(strategy?.liveEligible).toBe(false);
   }, 15_000);
 
   it("builds a live readiness report with venue and strategy blockers", async () => {
@@ -116,10 +138,11 @@ describe("hexchange service persistence", () => {
     expect(report.overallStatus).toBe("blocked");
     expect(report.checks).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "interactive_brokers-connectivity", status: "fail" }),
+        expect.objectContaining({ id: "interactive_brokers-connectivity", status: "pass" }),
         expect.objectContaining({ id: "kraken-connectivity", status: "fail" }),
       ]),
     );
-    expect(report.strategies.some((strategy) => strategy.blockers.length > 0)).toBe(true);
+    expect(report.strategies.some((strategy) => strategy.deploymentMode === "simulation_only")).toBe(true);
+    expect(report.strategies.some((strategy) => strategy.blocking)).toBe(true);
   });
 });
