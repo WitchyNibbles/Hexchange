@@ -1,0 +1,19 @@
+
+# devgod
+.env
+.env.devgod
+.env.devgod.*
+.gitnexus/
+.devgod/
+.agents/
+.codex/
+AGENTS.md
+.worktrees/
+node_modules/
+dist/
+coverage/
+.vite/
+.hexchange*/
+playwright-report/
+test-results/
+*.tsbuildinfo

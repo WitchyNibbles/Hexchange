@@ -1,0 +1,41 @@
+{
+  "name": "hexchange",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "node --watch --import tsx src/server/index.ts",
+    "dev:web": "vite",
+    "start": "node --import tsx src/server/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@types/supertest": "^6.0.3",
+    "@vitejs/plugin-react": "^4.5.0",
+    "@vitest/coverage-v8": "^3.2.3",
+    "concurrently": "^9.1.2",
+    "jsdom": "^26.1.0",
+    "supertest": "^7.1.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.3"
+  }
+}

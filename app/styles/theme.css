@@ -1,0 +1,307 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --bg: #041028;
+  --bg-deep: #020714;
+  --panel: rgba(8, 23, 53, 0.72);
+  --panel-border: rgba(120, 205, 255, 0.18);
+  --text: #e9f4ff;
+  --muted: #9dbad7;
+  --accent: #7ef0ff;
+  --accent-strong: #22d3ee;
+  --warning: #f8c36d;
+  --danger: #ff7d7d;
+  --shadow: 0 32px 60px rgba(1, 8, 22, 0.45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Manrope", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(33, 120, 186, 0.35), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(30, 227, 247, 0.12), transparent 28%),
+    linear-gradient(180deg, #0a1b3a 0%, var(--bg-deep) 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0) 1px),
+    radial-gradient(circle at 64% 38%, rgba(255, 255, 255, 0.6) 0, rgba(255, 255, 255, 0) 1px),
+    radial-gradient(circle at 82% 14%, rgba(126, 240, 255, 0.9) 0, rgba(126, 240, 255, 0) 2px),
+    radial-gradient(circle at 15% 76%, rgba(126, 240, 255, 0.5) 0, rgba(126, 240, 255, 0) 2px);
+  opacity: 0.7;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1.2rem;
+  font: inherit;
+  color: #06203d;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  box-shadow: 0 14px 28px rgba(34, 211, 238, 0.18);
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+button.secondary {
+  color: var(--text);
+  background: rgba(126, 240, 255, 0.08);
+  border: 1px solid rgba(126, 240, 255, 0.22);
+  box-shadow: none;
+}
+
+button.danger {
+  color: white;
+  background: linear-gradient(135deg, #d04b60, #ff7d7d);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 2rem;
+  background: linear-gradient(180deg, rgba(1, 12, 34, 0.9), rgba(4, 16, 40, 0.72));
+  border-right: 1px solid rgba(126, 240, 255, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.brand-mark {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.brand-sigil {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(126, 240, 255, 0.24), rgba(126, 240, 255, 0.02));
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.eyebrow,
+.panel-kicker {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.sidebar h1,
+.main-panel h2,
+.main-panel h3 {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 700;
+}
+
+.sidebar-copy {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 1.5rem 0 2rem;
+}
+
+.nav-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.nav-list a {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(11, 30, 68, 0.44);
+  border: 1px solid transparent;
+}
+
+.nav-list a.active {
+  border-color: rgba(126, 240, 255, 0.24);
+  background: rgba(15, 38, 79, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(126, 240, 255, 0.08);
+}
+
+.main-panel {
+  padding: 2rem;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.glass-panel {
+  padding: 1.4rem;
+  border-radius: 1.4rem;
+  background: linear-gradient(180deg, rgba(9, 25, 55, 0.8), rgba(6, 16, 35, 0.72));
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-copy,
+.glass-panel p,
+.strategy-card p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(126, 240, 255, 0.14);
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mode-live {
+  color: #8bf5ae;
+}
+
+.mode-halted {
+  color: var(--danger);
+}
+
+.stat-grid,
+.metric-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.stat-grid span,
+.metric-stack span,
+.strategy-stats,
+.event-meta,
+.position-list {
+  color: var(--muted);
+}
+
+.stat-grid strong,
+.metric-stack strong,
+.observatory-callout strong,
+.trade-row strong,
+.position-list strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+.observatory-callout {
+  margin-top: 1.4rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(126, 240, 255, 0.07);
+}
+
+.warning-list {
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+
+.event-list,
+.strategy-list,
+.trade-table {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.event-card,
+.strategy-card,
+.trade-row {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(126, 240, 255, 0.08);
+}
+
+.event-meta,
+.strategy-heading,
+.strategy-actions,
+.position-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.severity-critical {
+  border-color: rgba(255, 125, 125, 0.35);
+}
+
+.strategies-page,
+.trades-page,
+.portfolio-page {
+  min-height: 100%;
+}
+
+.strategy-stats {
+  padding-left: 1.1rem;
+}
+
+.position-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.position-list li {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid rgba(126, 240, 255, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .page-grid {
+    grid-template-columns: 1fr;
+  }
+}
