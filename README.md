@@ -21,13 +21,19 @@ Hexchange is a local-first trading workstation for stocks and crypto. It is desi
 npm install
 ```
 
-2. Start the backend and frontend:
+2. Bootstrap the local Nautilus runtime when you want the real Python engine path:
+
+```bash
+bash scripts/setup-nautilus-runtime.sh
+```
+
+3. Start the backend and frontend:
 
 ```bash
 npm run dev
 ```
 
-3. Open [http://localhost:5173](http://localhost:5173).
+4. Open [http://localhost:5173](http://localhost:5173).
 
 The app runs in a seeded local demo mode if the Nautilus runtime and live venue credentials are not configured. That keeps the full product usable while preserving the engine integration boundary for real paper or live trading.
 
@@ -48,6 +54,8 @@ Key variables:
 - `HEXCHANGE_NAUTILUS_RUNS_DIR`
 - `IB_GATEWAY_HOST`, `IB_GATEWAY_PORT`, `IB_CLIENT_ID`
 - `KRAKEN_API_KEY`, `KRAKEN_API_SECRET`
+
+For the recommended local runtime bootstrap, see [engine/nautilus/README.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/engine/nautilus/README.md).
 
 ## Verification
 

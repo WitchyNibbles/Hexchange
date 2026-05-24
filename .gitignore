@@ -14,6 +14,10 @@ dist/
 coverage/
 .vite/
 .hexchange*/
+engine/nautilus/.venv/
+engine/nautilus/build/
+engine/nautilus/*.egg-info/
+**/__pycache__/
 playwright-report/
 test-results/
 *.tsbuildinfo
