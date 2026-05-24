@@ -5,6 +5,8 @@ import type { EngineStatus, StrategySummary } from "../../src/shared/contracts";
 const defaultEngineStatus: EngineStatus = {
   mode: "simulated",
   available: true,
+  runtimeHealth: "offline",
+  venues: [],
   latestBacktests: [],
 };
 
@@ -22,6 +24,15 @@ export function StrategiesRoute() {
         <span>Engine mode</span>
         <strong>{engineStatus.mode}</strong>
         <p>{engineStatus.available ? "Backtest engine ready." : "Backtest engine unavailable."}</p>
+        <span>Runtime health</span>
+        <strong>{engineStatus.runtimeHealth}</strong>
+        <ul className="strategy-stats">
+          {engineStatus.venues.map((venue) => (
+            <li key={venue.venue}>
+              {venue.venue.replaceAll("_", " ")} · {venue.scope} · {venue.connected ? "connected" : "offline"}
+            </li>
+          ))}
+        </ul>
       </div>
       <div className="strategy-list">
         {strategies.map((strategy) => (

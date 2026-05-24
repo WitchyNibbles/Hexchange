@@ -44,8 +44,21 @@ describe("strategy cockpit", () => {
         },
       ],
       "/api/engine/status": {
-        mode: "simulated",
+        mode: "nautilus",
         available: true,
+        runtimeHealth: "ready",
+        venues: [
+          {
+            venue: "interactive_brokers",
+            connected: false,
+            scope: "stocks",
+          },
+          {
+            venue: "kraken",
+            connected: true,
+            scope: "crypto",
+          },
+        ],
         latestBacktests: [
           {
             strategyId: "stock-momentum",
@@ -74,7 +87,11 @@ describe("strategy cockpit", () => {
     });
 
     expect(screen.getByText(/engine mode/i)).toBeInTheDocument();
-    expect(screen.getByText(/simulated/i)).toBeInTheDocument();
+    expect(screen.getByText(/nautilus/i)).toBeInTheDocument();
+    expect(screen.getByText(/runtime health/i)).toBeInTheDocument();
+    expect(screen.getByText(/^ready$/i)).toBeInTheDocument();
+    expect(screen.getByText(/interactive brokers/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken/i)).toBeInTheDocument();
     expect(screen.getByText(/last backtest/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();
   });

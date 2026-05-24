@@ -28,9 +28,17 @@ export interface StrategyRuntimeStatus {
   lastHeartbeatAt: string;
 }
 
+export interface VenueConnectivity {
+  venue: "interactive_brokers" | "kraken";
+  connected: boolean;
+  scope: "stocks" | "crypto";
+}
+
 export interface EngineStatus {
-  mode: "simulated" | "lean_cli";
+  mode: "simulated" | "nautilus";
   available: boolean;
+  runtimeHealth: "ready" | "degraded" | "offline";
+  venues: VenueConnectivity[];
   latestBacktests: BacktestResult[];
 }
 

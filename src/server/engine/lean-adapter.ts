@@ -16,7 +16,7 @@ export class LeanAdapter implements EngineAdapter {
   private backtests: BacktestResult[] = [];
 
   private getMode(): EngineStatus["mode"] {
-    return process.env.HEXCHANGE_ENGINE_MODE === "lean_cli" ? "lean_cli" : "simulated";
+    return process.env.HEXCHANGE_ENGINE_MODE === "nautilus" ? "nautilus" : "simulated";
   }
 
   async runBacktest(request: BacktestRequest): Promise<BacktestResult> {
@@ -73,6 +73,19 @@ export class LeanAdapter implements EngineAdapter {
     return {
       mode: this.getMode(),
       available: true,
+      runtimeHealth: "ready",
+      venues: [
+        {
+          venue: "interactive_brokers",
+          connected: false,
+          scope: "stocks",
+        },
+        {
+          venue: "kraken",
+          connected: false,
+          scope: "crypto",
+        },
+      ],
       latestBacktests: this.backtests,
     };
   }
