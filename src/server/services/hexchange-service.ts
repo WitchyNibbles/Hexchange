@@ -18,8 +18,7 @@ import { EventStore } from "../audit/event-store";
 import { buildOrderNarrative, buildSignalNarrative } from "../audit/explanation-builder";
 import { AlpacaPaperBroker } from "../brokers/alpaca/alpaca-paper-broker";
 import { createEngineAdapter } from "../engine/engine-adapter";
-import type { BacktestResult } from "../engine/types";
-import { LeanAdapter } from "../engine/lean-adapter";
+import type { BacktestResult, PaperSession } from "../engine/types";
 import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
 import { KillSwitch } from "../risk/kill-switch";
@@ -55,6 +54,7 @@ export class HexchangeService {
   private positions: PositionSnapshot[] = [];
   private trades: TradeLogEntry[] = [];
   private backtests: BacktestResult[] = [];
+  private managedSessions = new Map<string, PaperSession>();
 
   constructor(appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange") {
     this.eventStore = new EventStore(path.join(appDir, "events.json"));
@@ -143,6 +143,10 @@ export class HexchangeService {
     return this.trades;
   }
 
+  getManagedSession(strategyId: string): PaperSession | null {
+    return this.managedSessions.get(strategyId) ?? null;
+  }
+
   async listEvents(): Promise<EventSummary[]> {
     return this.eventStore.list();
   }
@@ -203,6 +207,7 @@ export class HexchangeService {
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const session = await this.engineAdapter.startPaperSession(strategyId);
+    this.managedSessions.set(strategyId, session);
     this.updateStrategy({
       ...transitionStrategyState(strategy, "paper"),
       paperSessionActive: true,
@@ -250,6 +255,31 @@ export class HexchangeService {
     await this.persistState();
 
     return this.listStrategies().find((item) => item.id === strategyId)!;
+  }
+
+  async stopManagedSession(sessionId: string): Promise<void> {
+    await this.engineAdapter.stopSession(sessionId);
+
+    const entry = [...this.managedSessions.entries()].find(([, session]) => session.sessionId === sessionId);
+    if (!entry) {
+      return;
+    }
+
+    const [strategyId] = entry;
+    this.managedSessions.delete(strategyId);
+    const strategy = this.findStrategy(strategyId);
+    this.updateStrategy({
+      ...strategy,
+      paperSessionActive: false,
+    });
+
+    await this.recordEvent({
+      kind: "paper_session",
+      title: `${strategy.name} paper session stopped`,
+      body: `Session ${sessionId} was stopped and detached from ${strategy.symbol}.`,
+      severity: "info",
+    });
+    await this.persistState();
   }
 
   async armLiveStrategy(strategyId: string): Promise<StrategySummary> {
@@ -348,10 +378,7 @@ export class HexchangeService {
       severity: "info",
     });
 
-    if (this.engineAdapter instanceof LeanAdapter) {
-      this.engineAdapter.setOrders(intent.strategyId, this.orders);
-      this.engineAdapter.setPositions(intent.strategyId, this.positions);
-    }
+    this.syncEnginePortfolioState(intent.strategyId);
 
     await this.persistState();
 
@@ -417,15 +444,14 @@ export class HexchangeService {
     this.positions = snapshot.positions;
     this.trades = snapshot.trades;
     this.backtests = snapshot.backtests ?? [];
+    this.managedSessions = new Map((snapshot.managedSessions ?? []).map((session) => [session.strategyId, session]));
     this.riskSettings.maxPositionNotionalUsd = snapshot.riskSettings.maxPositionNotionalUsd;
     this.riskSettings.maxDailyLossPct = snapshot.riskSettings.maxDailyLossPct;
     this.riskSettings.liveRolloutCapUsd = snapshot.riskSettings.liveRolloutCapUsd;
     if (snapshot.killSwitch.engaged) {
       this.killSwitch.engage(snapshot.killSwitch.reason);
     }
-    if (this.engineAdapter instanceof LeanAdapter) {
-      this.engineAdapter.seedBacktests(this.backtests);
-    }
+    this.seedEngineBacktests();
   }
 
   private async persistState(): Promise<void> {
@@ -435,9 +461,28 @@ export class HexchangeService {
       positions: this.positions,
       trades: this.trades,
       backtests: this.backtests,
+      managedSessions: [...this.managedSessions.values()],
       riskSettings: this.riskSettings,
       killSwitch: this.killSwitch.getState(),
     });
+  }
+
+  private syncEnginePortfolioState(strategyId: string): void {
+    const syncableAdapter = this.engineAdapter as Partial<{
+      setOrders(strategyId: string, orders: NormalizedOrder[]): void;
+      setPositions(strategyId: string, positions: PositionSnapshot[]): void;
+    }>;
+
+    syncableAdapter.setOrders?.(strategyId, this.orders);
+    syncableAdapter.setPositions?.(strategyId, this.positions);
+  }
+
+  private seedEngineBacktests(): void {
+    const syncableAdapter = this.engineAdapter as Partial<{
+      seedBacktests(backtests: BacktestResult[]): void;
+    }>;
+
+    syncableAdapter.seedBacktests?.(this.backtests);
   }
 }
 
