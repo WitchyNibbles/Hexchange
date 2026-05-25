@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import base64
+import hashlib
+import hmac
 from importlib import metadata as importlib_metadata
 import importlib.util
 import json
@@ -12,11 +15,14 @@ import subprocess
 import sys
 import time
 from typing import Any
+import urllib.parse
+import urllib.request
 
 from ..artifacts import write_json_artifact
 
 HEARTBEAT_INTERVAL_SECONDS = 0.5
 HEARTBEAT_STALE_AFTER_SECONDS = 2.5
+KRAKEN_AUTH_CACHE_TTL_SECONDS = 30
 
 
 def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
@@ -65,7 +71,7 @@ def stop_session(strategy_id: str, runs_dir: str) -> str:
         "lastHeartbeatAt": parsed.get("lastHeartbeatAt"),
         "processId": process_id,
         "runtimeSource": parsed.get("runtimeSource") or _runtime_source(),
-        "executionMode": parsed.get("executionMode") or _execution_mode(_build_venue_statuses()),
+        "executionMode": parsed.get("executionMode") or _execution_mode(_build_venue_statuses(runs_path)),
         "state": "stopped",
         "alive": False,
         "stoppedAt": datetime.now(timezone.utc).isoformat(),
@@ -117,6 +123,7 @@ def runtime_status(runs_dir: str) -> str:
             }
         )
 
+    venue_statuses = _build_venue_statuses(runs_path)
     runtime_health = "degraded" if degraded else "ready"
     artifact_path = runs_path / "runtime-status.json"
     return write_json_artifact(
@@ -125,7 +132,7 @@ def runtime_status(runs_dir: str) -> str:
             "runtimeHealth": runtime_health,
             "nautilusInstalled": nautilus_installed,
             "nautilusVersion": nautilus_version,
-            "venues": _build_venue_statuses(),
+            "venues": venue_statuses,
             "sessions": sessions,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
@@ -138,7 +145,7 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
     started_at = datetime.now(timezone.utc).isoformat()
     process_id = os.getpid()
     runtime_source = _runtime_source()
-    venue_statuses = _build_venue_statuses()
+    venue_statuses = _build_venue_statuses(runs_path)
     execution_mode = _execution_mode(venue_statuses)
     running = True
 
@@ -245,7 +252,17 @@ def _heartbeat_stale(last_heartbeat_at: Any) -> bool:
     return (datetime.now(timezone.utc) - heartbeat).total_seconds() > HEARTBEAT_STALE_AFTER_SECONDS
 
 
-def _build_venue_statuses() -> list[dict[str, Any]]:
+def _heartbeat_stale_for_ttl(timestamp_value: Any, ttl_seconds: int) -> bool:
+    if not isinstance(timestamp_value, str):
+        return True
+    try:
+        timestamp = datetime.fromisoformat(timestamp_value.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return (datetime.now(timezone.utc) - timestamp).total_seconds() > ttl_seconds
+
+
+def _build_venue_statuses(runs_path: Path) -> list[dict[str, Any]]:
     ib_adapter = importlib.util.find_spec("nautilus_trader.adapters.interactive_brokers") is not None
     kraken_adapter = importlib.util.find_spec("nautilus_trader.adapters.kraken") is not None
 
@@ -265,6 +282,14 @@ def _build_venue_statuses() -> list[dict[str, Any]]:
     kraken_api_key = os.getenv("KRAKEN_API_KEY")
     kraken_api_secret = os.getenv("KRAKEN_API_SECRET")
     kraken_configured = bool(kraken_api_key and kraken_api_secret)
+    kraken_connected = False
+    kraken_details = "Kraken API credentials missing."
+    if kraken_adapter and kraken_configured:
+        kraken_connected, kraken_details = _get_cached_kraken_auth_status(
+            runs_path,
+            str(kraken_api_key),
+            str(kraken_api_secret),
+        )
 
     return [
         {
@@ -279,15 +304,98 @@ def _build_venue_statuses() -> list[dict[str, Any]]:
         },
         {
             "venue": "kraken",
-            "connected": kraken_adapter and kraken_configured,
+            "connected": kraken_connected,
             "scope": "crypto",
-            "details": (
-                "Credentials loaded for Kraken adapter."
-                if kraken_adapter and kraken_configured
-                else "Adapter unavailable." if not kraken_adapter else "Kraken API credentials missing."
-            ),
+            "details": kraken_details if kraken_adapter else "Adapter unavailable.",
         },
     ]
+
+
+def _get_cached_kraken_auth_status(runs_path: Path, api_key: str, api_secret: str) -> tuple[bool, str]:
+    cache_path = runs_path / "kraken-auth-status.json"
+    cached = _read_json(cache_path)
+    if cached:
+        checked_at = cached.get("checkedAt")
+        if isinstance(checked_at, str) and not _heartbeat_stale_for_ttl(checked_at, KRAKEN_AUTH_CACHE_TTL_SECONDS):
+            return bool(cached.get("connected")), str(cached.get("details") or "Kraken auth status cached.")
+
+    connected, details = _check_kraken_private_auth(runs_path, api_key, api_secret)
+    write_json_artifact(
+        cache_path,
+        {
+            "checkedAt": datetime.now(timezone.utc).isoformat(),
+            "connected": connected,
+            "details": details,
+        },
+    )
+    return connected, details
+
+
+def _check_kraken_private_auth(runs_path: Path, api_key: str, api_secret: str) -> tuple[bool, str]:
+    url_path = "/0/private/Balance"
+    for _attempt in range(2):
+        nonce = _next_kraken_nonce(runs_path)
+        payload = {"nonce": nonce}
+        encoded_payload = urllib.parse.urlencode(payload)
+
+        try:
+            message = url_path.encode() + hashlib.sha256((nonce + encoded_payload).encode()).digest()
+            signature = base64.b64encode(
+                hmac.new(base64.b64decode(api_secret), message, hashlib.sha512).digest()
+            ).decode()
+        except Exception:
+            return False, "Kraken API secret could not be decoded for request signing."
+
+        request = urllib.request.Request(
+            f"https://api.kraken.com{url_path}",
+            data=encoded_payload.encode(),
+            method="POST",
+            headers={
+                "API-Key": api_key,
+                "API-Sign": signature,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "Hexchange readiness probe",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                raw = response.read().decode()
+        except Exception as error:
+            return False, f"Kraken auth probe failed: {error}"
+
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return False, "Kraken auth probe returned malformed JSON."
+
+        errors = parsed.get("error") or []
+        if not errors:
+            return True, "Credentials verified against Kraken private API."
+
+        error_text = ", ".join(str(item) for item in errors)
+        if any("Invalid nonce" in str(item) for item in errors):
+            continue
+
+        return False, f"Kraken rejected the configured credentials: {error_text}"
+
+    return False, "Kraken rejected the configured credentials: EAPI:Invalid nonce"
+
+
+def _next_kraken_nonce(runs_path: Path) -> str:
+    nonce_path = runs_path / "kraken-auth-nonce.json"
+    cached = _read_json(nonce_path) or {}
+    last_nonce = int(cached.get("lastNonce", 0)) if str(cached.get("lastNonce", "0")).isdigit() else 0
+    current_nonce = int(time.time() * 1000)
+    nonce = max(current_nonce, last_nonce + 1)
+    write_json_artifact(
+        nonce_path,
+        {
+            "lastNonce": nonce,
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    return str(nonce)
 
 
 def _execution_mode(venue_statuses: list[dict[str, Any]]) -> str:

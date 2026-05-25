@@ -17,6 +17,7 @@ coverage/
 engine/nautilus/.venv/
 engine/nautilus/build/
 engine/nautilus/*.egg-info/
+engine/nautilus/runs/
 **/__pycache__/
 playwright-report/
 test-results/
