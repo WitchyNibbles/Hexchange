@@ -85,6 +85,7 @@ export class HexchangeService {
   private runtimeHeartbeatTask: Promise<void> | null = null;
   private validationCampaignStarted = false;
   private validationCampaignReady = false;
+  private validationCampaignStatus: ValidationCampaignSummary["status"] = "idle";
 
   constructor(
     appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange",
@@ -103,6 +104,7 @@ export class HexchangeService {
     const campaign = this.getValidationCampaignSummary();
     this.validationCampaignStarted = Boolean(campaign.firstObservedCycleAt);
     this.validationCampaignReady = campaign.campaignReady;
+    this.validationCampaignStatus = campaign.status;
     await this.recordEvent({
       kind: "system",
       title: "Hexchange observatory online",
@@ -393,8 +395,12 @@ export class HexchangeService {
       lastCompletedCycleAt
         ? (Date.now() - new Date(lastCompletedCycleAt).getTime()) / (1000 * 60 * 60)
         : null;
+    const hasActiveCryptoPaperSession = this.strategies.some(
+      (strategy) => strategy.market === "crypto" && strategy.paperSessionActive,
+    );
     const stalled =
       !campaignReady &&
+      !hasActiveCryptoPaperSession &&
       completedCycles > 0 &&
       hoursSinceLastCompletedCycle !== null &&
       hoursSinceLastCompletedCycle >= this.validationCampaignStaleHours;
@@ -433,12 +439,32 @@ export class HexchangeService {
     const campaign = this.getValidationCampaignSummary();
     const startedTransition = !this.validationCampaignStarted && Boolean(campaign.firstObservedCycleAt);
     const readyTransition = !this.validationCampaignReady && campaign.campaignReady;
+    const stalledTransition = this.validationCampaignStatus !== "stalled" && campaign.status === "stalled";
+    const resumedTransition = this.validationCampaignStatus === "stalled" && campaign.status !== "stalled";
 
     if (startedTransition) {
       await this.recordEvent({
         kind: "system",
         title: "Forward validation started",
         body: `Kraken paper evidence collection started at ${campaign.firstObservedCycleAt}. Campaign target is ${campaign.observedHoursTarget} observed hours and ${campaign.completedCyclesTarget} completed cycles.`,
+        severity: "info",
+      });
+    }
+
+    if (stalledTransition) {
+      await this.recordEvent({
+        kind: "system",
+        title: "Forward validation stalled",
+        body: campaign.summary,
+        severity: "warning",
+      });
+    }
+
+    if (resumedTransition) {
+      await this.recordEvent({
+        kind: "system",
+        title: "Forward validation resumed",
+        body: campaign.summary,
         severity: "info",
       });
     }
@@ -454,6 +480,7 @@ export class HexchangeService {
 
     this.validationCampaignStarted = Boolean(campaign.firstObservedCycleAt);
     this.validationCampaignReady = campaign.campaignReady;
+    this.validationCampaignStatus = campaign.status;
   }
 
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {

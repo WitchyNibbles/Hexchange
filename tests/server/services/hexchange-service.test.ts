@@ -553,6 +553,49 @@ describe("hexchange service persistence", () => {
     );
   }, 20_000);
 
+  it("records validation campaign stalled and resumed transitions", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "24";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "10";
+    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "0";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
+    let events = await service.listEvents();
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Forward validation stalled",
+        }),
+      ]),
+    );
+
+    await service.startPaperSession("crypto-breakout");
+
+    const collectingCampaign = service.getValidationCampaignSummary();
+    events = await service.listEvents();
+
+    expect(collectingCampaign.status).toBe("collecting");
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Forward validation resumed",
+        }),
+      ]),
+    );
+  }, 20_000);
+
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();
