@@ -125,6 +125,11 @@ export class HexchangeService {
       (sum, position) => sum + Math.abs(position.quantity * position.markPrice),
       0,
     );
+    const validationCampaign = this.getValidationCampaignSummary();
+    const activeWarnings = this.killSwitch.getState().engaged ? [this.killSwitch.getState().reason] : [];
+    if (validationCampaign.status === "stalled") {
+      activeWarnings.push(validationCampaign.summary);
+    }
 
     return {
       mode: this.getMode(),
@@ -133,7 +138,7 @@ export class HexchangeService {
       totalProfitPct: Number((totalProfitUsd / 10000).toFixed(2)),
       dailyDrawdownPct: 1.4,
       grossExposureUsd,
-      activeWarnings: this.killSwitch.getState().engaged ? [this.killSwitch.getState().reason] : [],
+      activeWarnings,
       paperStrategies: this.strategies.filter((strategy) => strategy.stage === "paper" || strategy.stage === "candidate_live").length,
       liveStrategies: this.strategies.filter((strategy) => strategy.stage === "live").length,
       killSwitchEngaged: this.killSwitch.getState().engaged,

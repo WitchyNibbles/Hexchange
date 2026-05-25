@@ -539,6 +539,7 @@ describe("hexchange service persistence", () => {
     await waitForPaperCycleCompletion(service, "crypto-breakout");
 
     const campaign = service.getValidationCampaignSummary();
+    const status = service.getSystemStatus();
 
     expect(campaign).toEqual(
       expect.objectContaining({
@@ -546,6 +547,9 @@ describe("hexchange service persistence", () => {
         summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
         campaignReady: false,
       }),
+    );
+    expect(status.activeWarnings).toContain(
+      "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
     );
   }, 20_000);
 
