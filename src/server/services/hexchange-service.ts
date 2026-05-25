@@ -117,6 +117,7 @@ export class HexchangeService {
     return this.strategies.map((strategy) => {
       const simulationOnly = strategy.market === "stock";
       const validation = buildValidationReport(strategy);
+      const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
 
       return {
         id: strategy.id,
@@ -142,6 +143,7 @@ export class HexchangeService {
           : "Kraken is the only venue that can progress from paper validation to live trading right now.",
         liveEligible: !simulationOnly && validation.passed,
         validationReport: validation.reasons,
+        lastPaperCycle,
         lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
       };
     });
@@ -645,6 +647,29 @@ export class HexchangeService {
       ...strategy.validation,
       sampleSize: strategy.validation.sampleSize + 1,
       paperDriftPct: blendedDriftPct,
+    };
+  }
+
+  private buildLastPaperCycleSummary(strategyId: string): StrategySummary["lastPaperCycle"] {
+    const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
+    if (strategyTrades.length === 0) {
+      return null;
+    }
+
+    const entryTrade = strategyTrades.find((trade) => trade.side === "buy") ?? null;
+    const exitTrades = strategyTrades.filter((trade) => trade.side === "sell");
+    const entryNotionalUsd = entryTrade ? Number((entryTrade.price * entryTrade.quantity).toFixed(2)) : 0;
+    const realizedPnlUsd = Number(exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0).toFixed(2));
+    const paperReturnPct = entryNotionalUsd > 0 ? Number(((realizedPnlUsd / entryNotionalUsd) * 100).toFixed(2)) : 0;
+    const latestTrade = strategyTrades.at(-1) ?? null;
+
+    return {
+      status: exitTrades.length > 0 ? "completed" : "running",
+      realizedPnlUsd,
+      entryNotionalUsd,
+      paperReturnPct,
+      exitCount: exitTrades.length,
+      completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
     };
   }
 

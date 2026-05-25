@@ -245,6 +245,13 @@ describe("hexchange service persistence", () => {
     const completedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
     expect(completedStrategy?.paperSessionActive).toBe(false);
     expect(completedStrategy?.validation.paperDriftPct).toBeGreaterThan(3.4);
+    expect(completedStrategy?.lastPaperCycle).toEqual(
+      expect.objectContaining({
+        realizedPnlUsd: expect.any(Number),
+        exitCount: 2,
+        status: "completed",
+      }),
+    );
     expect(service.getSystemStatus().mode).toBe("research");
   }, 20_000);
 

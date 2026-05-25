@@ -43,6 +43,14 @@ describe("strategy cockpit", () => {
           operatorWarning: "Simulation only: stock execution is disabled until a real stock broker is added.",
           liveEligible: false,
           validationReport: ["strategy passed all promotion gates"],
+          lastPaperCycle: {
+            status: "completed",
+            realizedPnlUsd: 8.66,
+            entryNotionalUsd: 1358.45,
+            paperReturnPct: 0.64,
+            exitCount: 2,
+            completedAt: "2026-05-24T08:40:00.000Z",
+          },
           lastBacktest: {
             strategyId: "stock-momentum",
             runId: "backtest-stock-momentum",
@@ -113,6 +121,8 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/paper-stock-momentum/i)).toBeInTheDocument();
     expect(screen.getByText(/pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/last paper cycle/i)).toBeInTheDocument();
+    expect(screen.getByText(/completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation session/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop simulation/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();

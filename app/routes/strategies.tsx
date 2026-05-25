@@ -70,6 +70,16 @@ export function StrategiesRoute() {
                   : "No backtest has been recorded yet."}
               </p>
             </div>
+            {strategy.lastPaperCycle ? (
+              <div className="validation-report">
+                <strong>Last paper cycle</strong>
+                <p>
+                  {strategy.lastPaperCycle.status} · pnl ${strategy.lastPaperCycle.realizedPnlUsd.toFixed(2)} · return{" "}
+                  {strategy.lastPaperCycle.paperReturnPct.toFixed(2)}% · exits {strategy.lastPaperCycle.exitCount}
+                  {strategy.lastPaperCycle.completedAt ? ` · ${strategy.lastPaperCycle.completedAt}` : ""}
+                </p>
+              </div>
+            ) : null}
             {strategy.paperSession ? (
               <div className="validation-report">
                 <strong>{strategy.market === "crypto" ? "Kraken paper session" : "Simulation session"}</strong>
