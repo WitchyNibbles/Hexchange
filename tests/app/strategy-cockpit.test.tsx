@@ -52,6 +52,17 @@ describe("strategy cockpit", () => {
             exitCount: 2,
             completedAt: "2026-05-24T08:40:00.000Z",
           },
+          liveEvidenceProgress: {
+            ready: false,
+            items: [
+              {
+                id: "simulation-only",
+                label: "Stock execution",
+                status: "blocked",
+                summary: "Simulation only until a real stock broker is added.",
+              },
+            ],
+          },
           paperCycleHistory: [
             {
               sessionId: "paper-stock-momentum-2",
@@ -163,6 +174,8 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/paper-stock-momentum-2 · completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
     expect(screen.getByText(/paper record/i)).toBeInTheDocument();
     expect(screen.getByText(/cycles 4 · completed 3 · win rate 66.67% · avg return 0.58% · pnl \$26.41/i)).toBeInTheDocument();
+    expect(screen.getByText(/live evidence progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/stock execution · blocked · simulation only until a real stock broker is added/i)).toBeInTheDocument();
     expect(screen.getByText(/stock strategies stay manual because they are simulation-only/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation session/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop simulation/i })).toBeInTheDocument();

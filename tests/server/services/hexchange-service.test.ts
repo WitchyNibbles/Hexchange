@@ -326,6 +326,24 @@ describe("hexchange service persistence", () => {
     await service.startPaperSession("crypto-breakout");
     await waitForPaperCycleCompletion(service, "crypto-breakout");
 
+    const validatedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
+    expect(validatedStrategy?.liveEvidenceProgress).toEqual(
+      expect.objectContaining({
+        ready: true,
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: "real-backtest",
+            status: "pass",
+          }),
+          expect.objectContaining({
+            id: "completed-cycles",
+            status: "pass",
+            summary: "2/2 completed.",
+          }),
+        ]),
+      }),
+    );
+
     const armedAfterCompletion = await service.armLiveStrategy("crypto-breakout");
     expect(armedAfterCompletion.stage).toBe("live");
     expect(service.getSystemStatus().mode).toBe("live");
@@ -383,6 +401,26 @@ describe("hexchange service persistence", () => {
         cumulativeRealizedPnlUsd: expect.any(Number),
         averageReturnPct: expect.any(Number),
         winRatePct: 100,
+      }),
+    );
+    expect(updatedStrategy?.liveEvidenceProgress).toEqual(
+      expect.objectContaining({
+        ready: false,
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: "real-backtest",
+            status: "blocked",
+          }),
+          expect.objectContaining({
+            id: "completed-cycles",
+            status: "pass",
+            summary: "2/2 completed.",
+          }),
+          expect.objectContaining({
+            id: "net-pnl",
+            status: "pass",
+          }),
+        ]),
       }),
     );
     expect(updatedStrategy?.paperCycleHistory).toHaveLength(2);

@@ -43,6 +43,23 @@ describe("dashboard route", () => {
           operatorWarning: "Kraken is the only venue that can progress from paper validation to live trading right now.",
           liveEligible: true,
           validationReport: ["strategy passed all promotion gates"],
+          liveEvidenceProgress: {
+            ready: true,
+            items: [
+              {
+                id: "real-backtest",
+                label: "Real Nautilus backtest",
+                status: "pass",
+                summary: "Completed.",
+              },
+              {
+                id: "completed-cycles",
+                label: "Completed Kraken paper cycles",
+                status: "pass",
+                summary: "3/2 completed.",
+              },
+            ],
+          },
           paperValidationStats: {
             cycles: 4,
             completedCycles: 3,

@@ -89,6 +89,16 @@ export function StrategiesRoute() {
                 {strategy.paperValidationStats.cumulativeRealizedPnlUsd.toFixed(2)}
               </p>
             </div>
+            <div className="validation-report">
+              <strong>Live evidence progress</strong>
+              <ul className="strategy-stats">
+                {strategy.liveEvidenceProgress.items.map((item) => (
+                  <li key={item.id}>
+                    {item.label} · {item.status} · {item.summary}
+                  </li>
+                ))}
+              </ul>
+            </div>
             {strategy.lastPaperCycle ? (
               <div className="validation-report">
                 <strong>Last paper cycle</strong>

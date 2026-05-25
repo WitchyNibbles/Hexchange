@@ -24,6 +24,7 @@ import type { KrakenTicker } from "../market/kraken-public-market-data";
 import { KrakenPublicMarketData } from "../market/kraken-public-market-data";
 import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
+import { buildLiveEvidenceProgress } from "../live/live-armament-policy";
 import { buildLiveReadinessReport } from "../live/live-readiness-report";
 import { KillSwitch } from "../risk/kill-switch";
 import { RiskEngine } from "../risk/risk-engine";
@@ -123,6 +124,8 @@ export class HexchangeService {
       const validation = buildValidationReport(strategy, paperValidationStats);
       const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
       const paperCycleHistory = this.buildPaperCycleHistory(strategy.id);
+      const lastBacktest = this.backtests.find((item) => item.strategyId === strategy.id) ?? null;
+      const liveEvidenceProgress = buildLiveEvidenceProgress(strategy, lastBacktest, paperValidationStats);
 
       return {
         id: strategy.id,
@@ -150,9 +153,10 @@ export class HexchangeService {
         liveEligible: !simulationOnly && validation.passed,
         validationReport: validation.reasons,
         paperValidationStats,
+        liveEvidenceProgress,
         lastPaperCycle,
         paperCycleHistory,
-        lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
+        lastBacktest,
       };
     });
   }

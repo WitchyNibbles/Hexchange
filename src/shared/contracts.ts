@@ -47,6 +47,7 @@ export interface StrategySummary {
   liveEligible: boolean;
   validationReport: string[];
   paperValidationStats: PaperValidationStats;
+  liveEvidenceProgress: LiveEvidenceProgress;
   lastPaperCycle: {
     status: "completed" | "running";
     realizedPnlUsd: number;
@@ -79,6 +80,18 @@ export interface PaperCycleSummary {
   exitCount: number;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+export interface LiveEvidenceProgress {
+  ready: boolean;
+  items: LiveEvidenceProgressItem[];
+}
+
+export interface LiveEvidenceProgressItem {
+  id: string;
+  label: string;
+  status: "pass" | "warn" | "blocked";
+  summary: string;
 }
 
 export interface TradeSummary extends TradeLogEntry {}

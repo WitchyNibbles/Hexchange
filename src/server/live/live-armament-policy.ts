@@ -1,6 +1,6 @@
 import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult } from "../engine/types";
-import type { PaperValidationStats } from "../../shared/contracts";
+import type { LiveEvidenceProgress, PaperValidationStats } from "../../shared/contracts";
 import { evaluatePromotionGates } from "../strategies/promotion-gates";
 
 export interface PaperCycleEvidence {
@@ -20,6 +20,75 @@ export interface LiveArmamentDecision {
 
 export const MIN_COMPLETED_PAPER_CYCLES = 2;
 export const MIN_PAPER_WIN_RATE_PCT = 55;
+
+export function buildLiveEvidenceProgress(
+  strategy: StrategyState,
+  lastBacktest: BacktestResult | null,
+  paperValidationStats: PaperValidationStats,
+): LiveEvidenceProgress {
+  if (strategy.market === "stock") {
+    return {
+      ready: false,
+      items: [
+        {
+          id: "simulation-only",
+          label: "Stock execution",
+          status: "blocked",
+          summary: "Simulation only until a real stock broker is added.",
+        },
+      ],
+    };
+  }
+
+  const items: LiveEvidenceProgress["items"] = [];
+  const backtestReady = lastBacktest?.runtimeSource === "nautilus_trader";
+  items.push({
+    id: "real-backtest",
+    label: "Real Nautilus backtest",
+    status: backtestReady ? "pass" : "blocked",
+    summary: backtestReady ? "Completed." : "Still required before live armament.",
+  });
+
+  const completedCyclesReady =
+    paperValidationStats.completedCycles >= MIN_COMPLETED_PAPER_CYCLES;
+  items.push({
+    id: "completed-cycles",
+    label: "Completed Kraken paper cycles",
+    status: completedCyclesReady ? "pass" : paperValidationStats.completedCycles > 0 ? "warn" : "blocked",
+    summary: `${paperValidationStats.completedCycles}/${MIN_COMPLETED_PAPER_CYCLES} completed.`,
+  });
+
+  const netPnlReady = paperValidationStats.cumulativeRealizedPnlUsd > 0;
+  items.push({
+    id: "net-pnl",
+    label: "Cumulative paper PnL",
+    status: netPnlReady ? "pass" : paperValidationStats.completedCycles > 0 ? "warn" : "blocked",
+    summary: `$${paperValidationStats.cumulativeRealizedPnlUsd.toFixed(2)} net realized PnL.`,
+  });
+
+  const avgReturnReady = paperValidationStats.averageReturnPct > 0;
+  items.push({
+    id: "average-return",
+    label: "Average paper return",
+    status: avgReturnReady ? "pass" : paperValidationStats.completedCycles > 0 ? "warn" : "blocked",
+    summary: `${paperValidationStats.averageReturnPct.toFixed(2)}% average return.`,
+  });
+
+  const winRateReady =
+    paperValidationStats.completedCycles > 0 &&
+    paperValidationStats.winRatePct >= MIN_PAPER_WIN_RATE_PCT;
+  items.push({
+    id: "win-rate",
+    label: "Paper win rate",
+    status: winRateReady ? "pass" : paperValidationStats.completedCycles > 0 ? "warn" : "blocked",
+    summary: `${paperValidationStats.winRatePct.toFixed(2)}% vs ${MIN_PAPER_WIN_RATE_PCT}% minimum.`,
+  });
+
+  return {
+    ready: items.every((item) => item.status === "pass"),
+    items,
+  };
+}
 
 export function evaluatePaperEvidencePolicy(paperValidationStats: PaperValidationStats): string[] {
   const reasons: string[] = [];
