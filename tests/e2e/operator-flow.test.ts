@@ -56,6 +56,8 @@ describe("operator flow", () => {
     delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
     delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
     delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
+    delete process.env.HEXCHANGE_VALIDATION_TARGET_HOURS;
+    delete process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES;
     await rm(appDir, { recursive: true, force: true });
     await rm(runsDir, { recursive: true, force: true });
   });

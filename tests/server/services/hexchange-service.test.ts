@@ -90,6 +90,8 @@ afterEach(async () => {
   delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
   delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
   delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
+  delete process.env.HEXCHANGE_VALIDATION_TARGET_HOURS;
+  delete process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES;
 });
 
 describe("hexchange service persistence", () => {
@@ -472,6 +474,46 @@ describe("hexchange service persistence", () => {
     expect(restartedSession?.sessionId).toMatch(/^paper-crypto-breakout-/);
     expect(completedSessionIds.size).toBeGreaterThanOrEqual(1);
     expect(completedSessionIds.has(restartedSession?.sessionId ?? "")).toBe(false);
+  }, 20_000);
+
+  it("records validation campaign milestones as paper evidence begins and target is reached", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "0";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "1";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
+    const campaign = service.getValidationCampaignSummary();
+    const events = await service.listEvents();
+
+    expect(campaign).toEqual(
+      expect.objectContaining({
+        observedHoursTarget: 0,
+        completedCyclesTarget: 1,
+        campaignReady: true,
+      }),
+    );
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Forward validation started",
+        }),
+        expect.objectContaining({
+          title: "Forward validation target reached",
+        }),
+      ]),
+    );
   }, 20_000);
 
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {

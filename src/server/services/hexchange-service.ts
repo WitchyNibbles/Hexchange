@@ -37,8 +37,15 @@ function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-const FORWARD_VALIDATION_TARGET_HOURS = 24;
-const FORWARD_VALIDATION_TARGET_CYCLES = 10;
+function readNumericEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
 
 export class HexchangeService {
   private readonly marketDataService = new MarketDataService();
@@ -59,6 +66,10 @@ export class HexchangeService {
   private readonly eventStore: EventStore;
   private readonly runtimeStateStore: RuntimeStateStore;
   private readonly krakenTicker: KrakenTicker;
+  private readonly validationCampaignTargets = {
+    observedHours: readNumericEnv("HEXCHANGE_VALIDATION_TARGET_HOURS", 24),
+    completedCycles: readNumericEnv("HEXCHANGE_VALIDATION_TARGET_CYCLES", 10),
+  };
   private strategies: StrategyState[] = buildReferenceStrategies(this.marketDataService);
   private orders: NormalizedOrder[] = [];
   private positions: PositionSnapshot[] = [];
@@ -68,6 +79,8 @@ export class HexchangeService {
   private runtimeHeartbeat: NodeJS.Timeout | null = null;
   private runtimeHeartbeatRunning = false;
   private runtimeHeartbeatTask: Promise<void> | null = null;
+  private validationCampaignStarted = false;
+  private validationCampaignReady = false;
 
   constructor(
     appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange",
@@ -83,6 +96,9 @@ export class HexchangeService {
   async initialize(): Promise<void> {
     await this.eventStore.ensureReady();
     await this.loadPersistedState();
+    const campaign = this.getValidationCampaignSummary();
+    this.validationCampaignStarted = Boolean(campaign.firstObservedCycleAt);
+    this.validationCampaignReady = campaign.campaignReady;
     await this.recordEvent({
       kind: "system",
       title: "Hexchange observatory online",
@@ -305,6 +321,7 @@ export class HexchangeService {
 
     if (stateChanged) {
       await this.persistState();
+      await this.syncValidationCampaignMilestones();
     }
   }
 
@@ -361,12 +378,12 @@ export class HexchangeService {
       0,
     );
     const campaignReady =
-      observedHours >= FORWARD_VALIDATION_TARGET_HOURS &&
-      completedCycles >= FORWARD_VALIDATION_TARGET_CYCLES;
+      observedHours >= this.validationCampaignTargets.observedHours &&
+      completedCycles >= this.validationCampaignTargets.completedCycles;
 
     return {
-      observedHoursTarget: FORWARD_VALIDATION_TARGET_HOURS,
-      completedCyclesTarget: FORWARD_VALIDATION_TARGET_CYCLES,
+      observedHoursTarget: this.validationCampaignTargets.observedHours,
+      completedCyclesTarget: this.validationCampaignTargets.completedCycles,
       observedHours,
       completedCycles,
       firstObservedCycleAt,
@@ -375,6 +392,33 @@ export class HexchangeService {
       unresolvedCryptoEvidenceChecks,
       campaignReady,
     };
+  }
+
+  private async syncValidationCampaignMilestones(): Promise<void> {
+    const campaign = this.getValidationCampaignSummary();
+    const startedTransition = !this.validationCampaignStarted && Boolean(campaign.firstObservedCycleAt);
+    const readyTransition = !this.validationCampaignReady && campaign.campaignReady;
+
+    if (startedTransition) {
+      await this.recordEvent({
+        kind: "system",
+        title: "Forward validation started",
+        body: `Kraken paper evidence collection started at ${campaign.firstObservedCycleAt}. Campaign target is ${campaign.observedHoursTarget} observed hours and ${campaign.completedCyclesTarget} completed cycles.`,
+        severity: "info",
+      });
+    }
+
+    if (readyTransition) {
+      await this.recordEvent({
+        kind: "system",
+        title: "Forward validation target reached",
+        body: `The MVP validation campaign reached ${campaign.observedHours.toFixed(1)} observed hours and ${campaign.completedCycles} completed cycles.`,
+        severity: "info",
+      });
+    }
+
+    this.validationCampaignStarted = Boolean(campaign.firstObservedCycleAt);
+    this.validationCampaignReady = campaign.campaignReady;
   }
 
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {

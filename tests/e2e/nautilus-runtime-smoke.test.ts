@@ -52,6 +52,8 @@ afterEach(async () => {
   delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
   delete process.env.HEXCHANGE_APP_DIR;
   delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
+  delete process.env.HEXCHANGE_VALIDATION_TARGET_HOURS;
+  delete process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES;
 });
 
 describe("nautilus runtime smoke", () => {
