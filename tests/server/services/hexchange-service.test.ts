@@ -522,6 +522,25 @@ describe("hexchange service persistence", () => {
     );
   }, 20_000);
 
+  it("describes active Kraken paper validation as forward evidence collection", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+
+    expect(service.getSystemStatus().currentActivity).toBe(
+      "BTC Lunar Breakout is running Kraken paper validation on BTCUSD. Forward evidence is actively collecting.",
+    );
+  }, 15_000);
+
   it("marks the validation campaign stalled when evidence stops progressing for too long", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();
