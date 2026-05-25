@@ -804,10 +804,21 @@ export class HexchangeService {
       return `${live.name} is currently armed for live execution.`;
     }
 
+    const validationCampaign = this.getValidationCampaignSummary();
+    if (validationCampaign.status === "ready") {
+      return "Forward validation target reached. Review the Kraken paper evidence before arming live capital.";
+    }
+
+    if (validationCampaign.status === "stalled") {
+      return validationCampaign.summary;
+    }
+
     const paper = this.strategies.find((strategy) => strategy.paperSessionActive);
     if (paper) {
       return paper.market === "crypto"
-        ? `${paper.name} is running Kraken paper validation on ${paper.symbol}.`
+        ? validationCampaign.status === "collecting"
+          ? `${paper.name} is running Kraken paper validation on ${paper.symbol}. Forward evidence is actively collecting.`
+          : `${paper.name} is running Kraken paper validation on ${paper.symbol}.`
         : `${paper.name} is running in stock simulation mode on ${paper.symbol}.`;
     }
 

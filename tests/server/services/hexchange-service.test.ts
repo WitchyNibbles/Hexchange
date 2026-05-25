@@ -507,6 +507,9 @@ describe("hexchange service persistence", () => {
         campaignReady: true,
       }),
     );
+    expect(service.getSystemStatus().currentActivity).toBe(
+      "Forward validation target reached. Review the Kraken paper evidence before arming live capital.",
+    );
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -547,6 +550,9 @@ describe("hexchange service persistence", () => {
         summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
         campaignReady: false,
       }),
+    );
+    expect(status.currentActivity).toBe(
+      "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
     );
     expect(status.activeWarnings).toContain(
       "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
