@@ -135,5 +135,8 @@ describe("dashboard route", () => {
     expect(screen.getByText(/3 completed cycles/i)).toBeInTheDocument();
     expect(screen.getByText(/66.67% win rate/i)).toBeInTheDocument();
     expect(screen.getByText(/\$26.41 cumulative pnl/i)).toBeInTheDocument();
+    expect(screen.getByText(/forward validation window/i)).toBeInTheDocument();
+    expect(screen.getByText(/first observed cycle 2026-05-24T11:52:00.000Z · last completed cycle 2026-05-24T12:00:00.000Z/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 crypto strategies currently satisfy the live evidence gate · 0 evidence checks still unresolved/i)).toBeInTheDocument();
   });
 });

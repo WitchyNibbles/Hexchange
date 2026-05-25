@@ -24,6 +24,7 @@ export function DashboardRoute() {
   const events = usePollingJson<EventSummary[]>(getEvents, []);
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const strategies = usePollingJson<StrategySummary[]>(getStrategies, []);
+  const cryptoStrategies = strategies.filter((strategy) => strategy.market === "crypto");
   const paperCycles = strategies.reduce((sum, strategy) => sum + strategy.paperValidationStats.cycles, 0);
   const completedPaperCycles = strategies.reduce(
     (sum, strategy) => sum + strategy.paperValidationStats.completedCycles,
@@ -39,6 +40,22 @@ export function DashboardRoute() {
       ? completedStrategies.reduce((sum, strategy) => sum + strategy.paperValidationStats.winRatePct, 0) /
         completedStrategies.length
       : 0;
+  const firstObservedCycleAt = cryptoStrategies
+    .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.startedAt))
+    .filter((value): value is string => Boolean(value))
+    .sort()[0] ?? null;
+  const lastCompletedCycleAt =
+    cryptoStrategies
+      .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.completedAt))
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
+  const readyCryptoStrategies = cryptoStrategies.filter((strategy) => strategy.liveEvidenceProgress.ready).length;
+  const unresolvedCryptoEvidenceChecks = cryptoStrategies.reduce(
+    (sum, strategy) =>
+      sum + strategy.liveEvidenceProgress.items.filter((item) => item.status !== "pass").length,
+    0,
+  );
 
   return (
     <div className="page-grid">
@@ -70,6 +87,17 @@ export function DashboardRoute() {
             {cumulativePaperPnl.toFixed(2)} cumulative pnl
           </p>
           <p>{paperCycles} total paper cycles are now preserved as promotion evidence.</p>
+        </div>
+        <div className="validation-report">
+          <strong>Forward validation window</strong>
+          <p>
+            First observed cycle {firstObservedCycleAt ?? "not started"} · last completed cycle{" "}
+            {lastCompletedCycleAt ?? "none yet"}
+          </p>
+          <p>
+            {readyCryptoStrategies} crypto strategies currently satisfy the live evidence gate ·{" "}
+            {unresolvedCryptoEvidenceChecks} evidence checks still unresolved
+          </p>
         </div>
       </section>
       <RitualLog events={events} />
