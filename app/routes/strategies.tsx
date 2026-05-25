@@ -63,6 +63,16 @@ export function StrategiesRoute() {
               <p>{strategy.operatorWarning ?? "No operator warnings."}</p>
             </div>
             <div className="validation-report">
+              <strong>Paper automation</strong>
+              <p>
+                {strategy.market === "crypto"
+                  ? strategy.autoPaperValidationEnabled
+                    ? "Continuous Kraken paper validation is enabled."
+                    : "Continuous Kraken paper validation is disabled."
+                  : "Stock strategies stay manual because they are simulation-only."}
+              </p>
+            </div>
+            <div className="validation-report">
               <strong>Last backtest</strong>
               <p>
                 {strategy.lastBacktest
@@ -132,6 +142,25 @@ export function StrategiesRoute() {
                   }}
                 >
                   {strategy.market === "crypto" ? "Stop Kraken paper" : "Stop simulation"}
+                </button>
+              ) : null}
+              {strategy.market === "crypto" ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    void fetch(`/api/strategies/${strategy.id}/paper-automation`, {
+                      method: "PATCH",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        autoPaperValidationEnabled: !strategy.autoPaperValidationEnabled,
+                      }),
+                    });
+                  }}
+                >
+                  {strategy.autoPaperValidationEnabled ? "Disable auto paper" : "Enable auto paper"}
                 </button>
               ) : null}
               <button

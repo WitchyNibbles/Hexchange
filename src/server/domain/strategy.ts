@@ -35,6 +35,7 @@ export interface StrategyState {
   signal: SignalExplanation | null;
   validation: StrategyValidationMetrics;
   paperSessionActive: boolean;
+  autoPaperValidationEnabled?: boolean;
 }
 
 const allowedTransitions: Record<StrategyLifecycleStage, StrategyLifecycleStage[]> = {

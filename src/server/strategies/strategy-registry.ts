@@ -29,6 +29,7 @@ export function buildReferenceStrategies(marketDataService: MarketDataService): 
       signal: buildStockMomentumSignal(marketDataService.getCandles("AAPL")),
       validation: createValidationMetrics({ feeAdjustedReturnPct: 10.8, sharpeRatio: 1.14 }),
       paperSessionActive: false,
+      autoPaperValidationEnabled: false,
     },
     {
       id: "crypto-breakout",
@@ -44,6 +45,7 @@ export function buildReferenceStrategies(marketDataService: MarketDataService): 
         paperDriftPct: 3.4,
       }),
       paperSessionActive: false,
+      autoPaperValidationEnabled: false,
     },
   ];
 }

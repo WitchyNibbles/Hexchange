@@ -31,6 +31,7 @@ describe("strategy cockpit", () => {
             paperDriftPct: 2.3,
           },
           paperSessionActive: true,
+          autoPaperValidationEnabled: true,
           paperSession: {
             sessionId: "paper-stock-momentum",
             startedAt: "2026-05-24T08:30:00.000Z",
@@ -132,6 +133,7 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
     expect(screen.getByText(/paper record/i)).toBeInTheDocument();
     expect(screen.getByText(/cycles 4 · completed 3 · win rate 66.67% · avg return 0.58% · pnl \$26.41/i)).toBeInTheDocument();
+    expect(screen.getByText(/stock strategies stay manual because they are simulation-only/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation session/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop simulation/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();

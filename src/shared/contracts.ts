@@ -41,6 +41,7 @@ export interface StrategySummary {
   validation: StrategyValidationMetrics;
   paperSessionActive: boolean;
   paperSession: PaperSession | null;
+  autoPaperValidationEnabled: boolean;
   deploymentMode: "simulation_only" | "kraken_live_candidate";
   operatorWarning: string | null;
   liveEligible: boolean;

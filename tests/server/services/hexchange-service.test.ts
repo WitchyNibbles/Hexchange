@@ -27,6 +27,29 @@ async function waitForPaperCycleCompletion(service: HexchangeService, strategyId
   throw new Error(`Timed out waiting for ${strategyId} paper cycle completion`);
 }
 
+async function waitForAutoRestart(service: HexchangeService, strategyId: string, timeoutMs = 6000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await service.refreshRuntimeTelemetry();
+    const activeSession = service.getManagedSession(strategyId);
+    const cycleTrades = service.listTrades().filter((trade) => trade.strategyId === strategyId);
+    const completedSessionIds = new Set(
+      cycleTrades
+        .filter((trade) => trade.side === "sell" && trade.sessionId)
+        .map((trade) => trade.sessionId as string),
+    );
+
+    if (activeSession && completedSessionIds.size > 0 && !completedSessionIds.has(activeSession.sessionId)) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for ${strategyId} paper automation restart`);
+}
+
 async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
   let entries: string[] = [];
   try {
@@ -350,6 +373,37 @@ describe("hexchange service persistence", () => {
         winRatePct: 100,
       }),
     );
+  }, 20_000);
+
+  it("automatically restarts crypto paper validation when automation is enabled", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.updatePaperAutomation("crypto-breakout", true);
+    await service.startPaperSession("crypto-breakout");
+    await waitForAutoRestart(service, "crypto-breakout", 6000);
+
+    const restartedSession = service.getManagedSession("crypto-breakout");
+    const updatedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
+    const trades = service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout");
+    const completedSessionIds = new Set(
+      trades.filter((trade) => trade.side === "sell").map((trade) => trade.sessionId),
+    );
+
+    expect(updatedStrategy?.autoPaperValidationEnabled).toBe(true);
+    expect(updatedStrategy?.paperSessionActive).toBe(true);
+    expect(restartedSession?.sessionId).toMatch(/^paper-crypto-breakout-/);
+    expect(completedSessionIds.size).toBeGreaterThanOrEqual(1);
+    expect(completedSessionIds.has(restartedSession?.sessionId ?? "")).toBe(false);
   }, 20_000);
 
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {

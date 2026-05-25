@@ -63,6 +63,15 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.armLiveStrategy(getRouteParam(request.params.strategyId)));
   }));
 
+  app.patch("/api/strategies/:strategyId/paper-automation", asyncRoute(async (request, response) => {
+    response.json(
+      await service.updatePaperAutomation(
+        getRouteParam(request.params.strategyId),
+        Boolean(request.body?.autoPaperValidationEnabled),
+      ),
+    );
+  }));
+
   app.get("/api/trades", asyncRoute(async (_request, response) => {
     await service.refreshRuntimeTelemetry();
     response.json(service.listTrades());

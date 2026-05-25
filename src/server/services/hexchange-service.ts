@@ -138,6 +138,7 @@ export class HexchangeService {
         validation: strategy.validation,
         paperSessionActive: strategy.paperSessionActive,
         paperSession: this.managedSessions.get(strategy.id) ?? null,
+        autoPaperValidationEnabled: strategy.autoPaperValidationEnabled ?? false,
         deploymentMode: simulationOnly ? "simulation_only" : "kraken_live_candidate",
         operatorWarning: simulationOnly
           ? "Simulation only: stock execution is disabled until a real stock broker is added."
@@ -227,17 +228,27 @@ export class HexchangeService {
       if (strategy.market === "crypto" && trades.length > 0 && positions.length === 0) {
         this.managedSessions.delete(strategyId);
         const updatedValidation = this.updateValidationFromPaperCycle(strategy, trades);
-        this.updateStrategy({
+        const updatedStrategy = {
           ...this.findStrategy(strategyId),
           validation: updatedValidation,
           paperSessionActive: false,
-        });
+        };
+        this.updateStrategy(updatedStrategy);
         await this.recordEvent({
           kind: "paper_session",
           title: `${strategy.name} paper cycle completed`,
           body: `Paper validation on ${strategy.symbol} completed. Updated paper drift to ${updatedValidation.paperDriftPct.toFixed(2)}%.`,
           severity: "info",
         });
+        if (
+          updatedStrategy.autoPaperValidationEnabled &&
+          !this.killSwitch.getState().engaged &&
+          updatedStrategy.stage !== "live" &&
+          updatedStrategy.stage !== "halted" &&
+          updatedStrategy.stage !== "retired"
+        ) {
+          await this.startPaperSession(strategyId);
+        }
         stateChanged = true;
       }
     }
@@ -306,6 +317,30 @@ export class HexchangeService {
     });
     await this.persistState();
     return result;
+  }
+
+  async updatePaperAutomation(strategyId: string, enabled: boolean): Promise<StrategySummary> {
+    const strategy = this.findStrategy(strategyId);
+    if (strategy.market !== "crypto") {
+      throw new Error("Continuous paper validation is only available for crypto strategies.");
+    }
+
+    this.updateStrategy({
+      ...strategy,
+      autoPaperValidationEnabled: enabled,
+    });
+
+    await this.recordEvent({
+      kind: "system",
+      title: `${strategy.name} paper automation ${enabled ? "enabled" : "disabled"}`,
+      body: enabled
+        ? `Continuous Kraken paper validation will restart automatically after each completed cycle for ${strategy.symbol}.`
+        : `Continuous Kraken paper validation was turned off for ${strategy.symbol}.`,
+      severity: "info",
+    });
+    await this.persistState();
+
+    return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
