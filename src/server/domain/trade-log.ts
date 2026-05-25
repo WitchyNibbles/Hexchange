@@ -5,6 +5,10 @@ export interface TradeLogEntry {
   strategyId: string;
   symbol: string;
   market: "stock" | "crypto";
+  venue?: "simulation" | "kraken" | "interactive_brokers" | "alpaca" | null;
+  executionMode?: "simulation" | "paper" | "live" | null;
+  runtimeSource?: "hexchange_local" | "nautilus_trader" | "alpaca_paper" | "synthetic" | null;
+  sessionId?: string | null;
   side: OrderSide;
   quantity: number;
   price: number;

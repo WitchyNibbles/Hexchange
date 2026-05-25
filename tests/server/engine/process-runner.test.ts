@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import os from "node:os";
@@ -15,9 +15,28 @@ async function createTempDir(): Promise<string> {
   return dir;
 }
 
+async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
+  const files = await readdir(rootDir).catch(() => []);
+  await Promise.all(
+    files
+      .filter((file) => /^session-.*\.json$/.test(file) && !file.includes("-telemetry") && !file.includes("-state"))
+      .map(async (file) => {
+        try {
+          const parsed = JSON.parse(await readFile(path.join(rootDir, file), "utf8")) as { processId?: number };
+          if (typeof parsed.processId === "number" && parsed.processId > 0) {
+            process.kill(parsed.processId, "SIGKILL");
+          }
+        } catch {
+          // Best-effort cleanup for failed worker sessions.
+        }
+      }),
+  );
+}
+
 afterEach(async () => {
   await Promise.all(
     tempDirs.splice(0).map(async (dir) => {
+      await terminateRuntimeWorkers(dir);
       await rm(dir, { recursive: true, force: true });
     }),
   );
@@ -73,7 +92,7 @@ describe("process runner", () => {
     });
 
     expect(start.ok).toBe(true);
-    expect(start.sessionId).toBe("paper-stock-momentum");
+    expect(start.sessionId).toMatch(/^paper-stock-momentum-/);
     expect(existsSync(start.artifactPath!)).toBe(true);
 
     const startedSession = JSON.parse(readFileSync(start.artifactPath!, "utf8")) as {
@@ -161,21 +180,24 @@ describe("process runner", () => {
     });
 
     expect(start.ok).toBe(true);
+    expect(start.sessionId).toMatch(/^paper-crypto-breakout-/);
 
     await new Promise((resolve) => setTimeout(resolve, 1900));
 
     const telemetryPath = path.join(runsDir, "session-crypto-breakout-telemetry.json");
     const telemetry = JSON.parse(readFileSync(telemetryPath, "utf8")) as {
+      sessionId: string;
       positions: Array<{ quantity: number }>;
-      trades: Array<{ side: string; quantity: number; realizedPnlUsd: number }>;
+      trades: Array<{ side: string; quantity: number; realizedPnlUsd: number; sessionId: string }>;
     };
 
     expect(telemetry.positions).toEqual([]);
+    expect(telemetry.sessionId).toBe(start.sessionId);
     expect(telemetry.trades).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ side: "buy", quantity: 0.021 }),
-        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
-        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+        expect.objectContaining({ side: "buy", quantity: 0.021, sessionId: start.sessionId }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105, sessionId: start.sessionId }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105, sessionId: start.sessionId }),
       ]),
     );
     expect(telemetry.trades.some((trade) => trade.realizedPnlUsd > 0)).toBe(true);

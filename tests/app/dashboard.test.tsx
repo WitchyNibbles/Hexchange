@@ -19,7 +19,26 @@ describe("dashboard route", () => {
         dataFreshness: "fresh",
       },
       "/api/events": [],
-      "/api/trades": [],
+      "/api/trades": [
+        {
+          id: "trade-kraken-exit",
+          strategyId: "crypto-breakout",
+          symbol: "BTCUSD",
+          market: "crypto",
+          side: "sell",
+          quantity: 0.0105,
+          price: 65220,
+          feeUsd: 0.68,
+          realizedPnlUsd: 5.59,
+          expectedEdgeBps: 148,
+          explanation: "Closed the Kraken paper leg.",
+          createdAt: "2026-05-24T12:09:00.000Z",
+          venue: "kraken",
+          executionMode: "paper",
+          runtimeSource: "nautilus_trader",
+          sessionId: "paper-crypto-breakout",
+        },
+      ],
     };
 
     vi.stubGlobal(
@@ -35,5 +54,8 @@ describe("dashboard route", () => {
     await waitFor(() => {
       expect(screen.getByText(/AAPL Trend Familiar is paper trading AAPL/i)).toBeInTheDocument();
     });
+
+    expect(screen.getByText(/BTCUSD sell at \$65220\.00/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken · paper · session paper-crypto-breakout/i)).toBeInTheDocument();
   });
 });

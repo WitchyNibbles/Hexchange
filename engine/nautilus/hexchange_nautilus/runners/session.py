@@ -17,6 +17,7 @@ import time
 from typing import Any
 import urllib.parse
 import urllib.request
+import uuid
 
 from ..artifacts import write_json_artifact
 
@@ -38,6 +39,7 @@ def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
     runs_path.mkdir(parents=True, exist_ok=True)
     log_path = runs_path / f"session-{strategy_id}.log"
     with log_path.open("a", encoding="utf-8") as log_file:
+        session_id = _new_session_id(strategy_id)
         process = subprocess.Popen(
             [
                 sys.executable,
@@ -48,6 +50,8 @@ def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
                 strategy_id,
                 "--runs-dir",
                 str(runs_path),
+                "--session-id",
+                session_id,
             ],
             stdout=log_file,
             stderr=log_file,
@@ -56,7 +60,7 @@ def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
         )
 
     _wait_for_session_bootstrap(artifact_path, process.pid)
-    return f"paper-{strategy_id}", str(artifact_path)
+    return session_id, str(artifact_path)
 
 
 def stop_session(strategy_id: str, runs_dir: str) -> str:
@@ -142,7 +146,7 @@ def runtime_status(runs_dir: str) -> str:
     )
 
 
-def session_worker(strategy_id: str, runs_dir: str) -> None:
+def session_worker(strategy_id: str, runs_dir: str, session_id: str) -> None:
     runs_path = Path(runs_dir)
     artifact_path = _session_artifact_path(strategy_id, runs_path)
     state_path = _session_state_artifact_path(strategy_id, runs_path)
@@ -152,7 +156,7 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
     venue_statuses = _build_venue_statuses(runs_path)
     execution_mode = _execution_mode(venue_statuses)
     running = True
-    state = _load_or_initialize_session_state(strategy_id, runs_path, started_at)
+    state = _load_or_initialize_session_state(strategy_id, runs_path, started_at, session_id)
 
     def handle_stop(_signum: int, _frame: object) -> None:
         nonlocal running
@@ -168,7 +172,7 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
         write_json_artifact(
             artifact_path,
             {
-                "sessionId": f"paper-{strategy_id}",
+                "sessionId": session_id,
                 "strategyId": strategy_id,
                 "startedAt": started_at,
                 "lastHeartbeatAt": now,
@@ -184,19 +188,19 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
             telemetry_path,
             _build_session_telemetry(
                 state=state,
-                session_id=f"paper-{strategy_id}",
+                session_id=session_id,
                 updated_at=now,
             ),
         )
         if str(state.get("phase")) == "closed":
             running = False
             continue
-        time.sleep(HEARTBEAT_INTERVAL_SECONDS)
+        time.sleep(_heartbeat_interval_seconds())
 
     write_json_artifact(
         artifact_path,
         {
-            "sessionId": f"paper-{strategy_id}",
+            "sessionId": session_id,
             "strategyId": strategy_id,
             "startedAt": started_at,
             "lastHeartbeatAt": datetime.now(timezone.utc).isoformat(),
@@ -220,6 +224,10 @@ def _session_telemetry_artifact_path(strategy_id: str, runs_path: Path) -> Path:
 
 def _session_state_artifact_path(strategy_id: str, runs_path: Path) -> Path:
     return runs_path / f"session-{strategy_id}-state.json"
+
+
+def _new_session_id(strategy_id: str) -> str:
+    return f"paper-{strategy_id}-{uuid.uuid4().hex[:8]}"
 
 
 def _wait_for_session_bootstrap(artifact_path: Path, process_id: int) -> None:
@@ -277,6 +285,10 @@ def _heartbeat_stale(last_heartbeat_at: Any) -> bool:
     except ValueError:
         return True
     return (datetime.now(timezone.utc) - heartbeat).total_seconds() > HEARTBEAT_STALE_AFTER_SECONDS
+
+
+def _heartbeat_interval_seconds() -> float:
+    return 0.2 if _read_test_price_series() else HEARTBEAT_INTERVAL_SECONDS
 
 
 def _heartbeat_stale_for_ttl(timestamp_value: Any, ttl_seconds: int) -> bool:
@@ -472,9 +484,14 @@ def _build_session_telemetry(
     }
 
 
-def _load_or_initialize_session_state(strategy_id: str, runs_path: Path, started_at: str) -> dict[str, Any]:
+def _load_or_initialize_session_state(
+    strategy_id: str,
+    runs_path: Path,
+    started_at: str,
+    session_id: str,
+) -> dict[str, Any]:
     existing = _read_json(_session_state_artifact_path(strategy_id, runs_path))
-    if existing:
+    if existing and existing.get("sessionId") == session_id:
         return existing
 
     seed = _session_telemetry_seed(strategy_id)
@@ -484,6 +501,7 @@ def _load_or_initialize_session_state(strategy_id: str, runs_path: Path, started
 
     return {
         "strategyId": strategy_id,
+        "sessionId": session_id,
         "symbol": seed["symbol"],
         "market": seed["market"],
         "phase": "open",
@@ -512,10 +530,14 @@ def _load_or_initialize_session_state(strategy_id: str, runs_path: Path, started
         ],
         "trades": [
             {
-                "id": f"runtime-trade-entry-{strategy_id}",
+                "id": f"runtime-trade-entry-{strategy_id}-{session_id}",
                 "strategyId": strategy_id,
                 "symbol": seed["symbol"],
                 "market": seed["market"],
+                "venue": _trade_venue(str(seed["market"])),
+                "executionMode": "paper",
+                "runtimeSource": _runtime_source(),
+                "sessionId": session_id,
                 "side": "buy",
                 "quantity": quantity,
                 "price": entry_price,
@@ -585,6 +607,7 @@ def _append_exit_fill(
     realized_pnl = round((price - entry_price) * quantity, 2)
     fee_usd = round(price * quantity * 0.001, 2)
     fill_index = len(state["trades"]) + 1
+    session_id = str(state["sessionId"])
 
     state["remainingQuantity"] = remaining_quantity
     state["realizedPnlUsd"] = round(float(state["realizedPnlUsd"]) + realized_pnl, 2)
@@ -604,10 +627,14 @@ def _append_exit_fill(
     ]
     state["trades"] = list(state["trades"]) + [
         {
-            "id": f"runtime-trade-exit-{state['strategyId']}-{fill_index}",
+            "id": f"runtime-trade-exit-{state['strategyId']}-{session_id}-{fill_index}",
             "strategyId": state["strategyId"],
             "symbol": state["symbol"],
             "market": state["market"],
+            "venue": _trade_venue(str(state["market"])),
+            "executionMode": "paper",
+            "runtimeSource": _runtime_source(),
+            "sessionId": session_id,
             "side": "sell",
             "quantity": quantity,
             "price": price,
@@ -618,6 +645,10 @@ def _append_exit_fill(
             "createdAt": created_at,
         }
     ]
+
+
+def _trade_venue(market: str) -> str:
+    return "kraken" if market == "crypto" else "simulation"
 
 
 def _read_market_price(strategy_id: str, runs_path: Path, tick: int, fallback_price: float) -> float:

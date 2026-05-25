@@ -7,6 +7,11 @@ interface ObservatoryPanelProps {
 
 export function ObservatoryPanel({ status, trades }: ObservatoryPanelProps) {
   const recentTrade = trades[0];
+  const attribution = recentTrade
+    ? [recentTrade.venue, recentTrade.executionMode, recentTrade.sessionId ? `session ${recentTrade.sessionId}` : null]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   return (
     <section className="glass-panel observatory-panel">
@@ -39,6 +44,7 @@ export function ObservatoryPanel({ status, trades }: ObservatoryPanelProps) {
       <div className="observatory-callout">
         <span>Latest ritual</span>
         <strong>{recentTrade ? `${recentTrade.symbol} ${recentTrade.side} at $${recentTrade.price.toFixed(2)}` : "No trades yet"}</strong>
+        {attribution ? <p>{attribution}</p> : null}
       </div>
     </section>
   );

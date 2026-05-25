@@ -118,6 +118,7 @@ export class HexchangeService {
       const simulationOnly = strategy.market === "stock";
       const validation = buildValidationReport(strategy);
       const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
+      const paperValidationStats = this.buildPaperValidationStats(strategy.id);
 
       return {
         id: strategy.id,
@@ -143,6 +144,7 @@ export class HexchangeService {
           : "Kraken is the only venue that can progress from paper validation to live trading right now.",
         liveEligible: !simulationOnly && validation.passed,
         validationReport: validation.reasons,
+        paperValidationStats,
         lastPaperCycle,
         lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
       };
@@ -217,7 +219,7 @@ export class HexchangeService {
       }
 
       if (trades.length > 0) {
-        this.trades = [...trades, ...this.trades.filter((item) => item.strategyId !== strategyId)];
+        this.trades = this.mergeTradeHistory(this.trades, trades);
         this.syncEnginePortfolioState(strategyId);
         stateChanged = true;
       }
@@ -501,6 +503,10 @@ export class HexchangeService {
       strategyId: intent.strategyId,
       symbol: intent.symbol,
       market: intent.market,
+      venue: this.broker.enabled ? "alpaca" : "simulation",
+      executionMode: "simulation",
+      runtimeSource: this.broker.enabled ? "alpaca_paper" : "hexchange_local",
+      sessionId: this.managedSessions.get(intent.strategyId)?.sessionId ?? null,
       side: intent.side,
       quantity: intent.quantity,
       price: fillPrice,
@@ -651,17 +657,23 @@ export class HexchangeService {
   }
 
   private buildLastPaperCycleSummary(strategyId: string): StrategySummary["lastPaperCycle"] {
-    const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
+    const strategyTrades = this.trades
+      .filter((trade) => trade.strategyId === strategyId)
+      .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
     if (strategyTrades.length === 0) {
       return null;
     }
 
-    const entryTrade = strategyTrades.find((trade) => trade.side === "buy") ?? null;
-    const exitTrades = strategyTrades.filter((trade) => trade.side === "sell");
+    const latestSessionId = strategyTrades.at(-1)?.sessionId ?? null;
+    const cycleTrades = latestSessionId
+      ? strategyTrades.filter((trade) => trade.sessionId === latestSessionId)
+      : strategyTrades;
+    const entryTrade = cycleTrades.find((trade) => trade.side === "buy") ?? null;
+    const exitTrades = cycleTrades.filter((trade) => trade.side === "sell");
     const entryNotionalUsd = entryTrade ? Number((entryTrade.price * entryTrade.quantity).toFixed(2)) : 0;
     const realizedPnlUsd = Number(exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0).toFixed(2));
     const paperReturnPct = entryNotionalUsd > 0 ? Number(((realizedPnlUsd / entryNotionalUsd) * 100).toFixed(2)) : 0;
-    const latestTrade = strategyTrades.at(-1) ?? null;
+    const latestTrade = cycleTrades.at(-1) ?? null;
 
     return {
       status: exitTrades.length > 0 ? "completed" : "running",
@@ -671,6 +683,78 @@ export class HexchangeService {
       exitCount: exitTrades.length,
       completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
     };
+  }
+
+  private buildPaperValidationStats(strategyId: string): StrategySummary["paperValidationStats"] {
+    const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
+    const cycles = new Map<string, TradeLogEntry[]>();
+
+    for (const trade of strategyTrades) {
+      const cycleId = trade.sessionId ?? `${trade.strategyId}-legacy`;
+      const cycleTrades = cycles.get(cycleId) ?? [];
+      cycleTrades.push(trade);
+      cycles.set(cycleId, cycleTrades);
+    }
+
+    const cycleSummaries = [...cycles.values()]
+      .map((cycleTrades) => {
+        const orderedTrades = cycleTrades.sort(
+          (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+        );
+        const entryTrade = orderedTrades.find((trade) => trade.side === "buy") ?? null;
+        const exitTrades = orderedTrades.filter((trade) => trade.side === "sell");
+        const entryNotionalUsd = entryTrade ? entryTrade.price * entryTrade.quantity : 0;
+        const realizedPnlUsd = exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0);
+        const returnPct = entryNotionalUsd > 0 ? (realizedPnlUsd / entryNotionalUsd) * 100 : 0;
+
+        return {
+          completed: exitTrades.length > 0,
+          realizedPnlUsd,
+          returnPct,
+        };
+      });
+
+    const completedCycles = cycleSummaries.filter((cycle) => cycle.completed);
+    const cumulativeRealizedPnlUsd = Number(
+      completedCycles.reduce((sum, cycle) => sum + cycle.realizedPnlUsd, 0).toFixed(2),
+    );
+    const averageReturnPct =
+      completedCycles.length > 0
+        ? Number(
+            (
+              completedCycles.reduce((sum, cycle) => sum + cycle.returnPct, 0) /
+              completedCycles.length
+            ).toFixed(2),
+          )
+        : 0;
+    const winRatePct =
+      completedCycles.length > 0
+        ? Number(
+            (
+              (completedCycles.filter((cycle) => cycle.realizedPnlUsd > 0).length / completedCycles.length) *
+              100
+            ).toFixed(2),
+          )
+        : 0;
+
+    return {
+      cycles: cycleSummaries.length,
+      completedCycles: completedCycles.length,
+      cumulativeRealizedPnlUsd,
+      averageReturnPct,
+      winRatePct,
+    };
+  }
+
+  private mergeTradeHistory(existingTrades: TradeLogEntry[], incomingTrades: TradeLogEntry[]): TradeLogEntry[] {
+    const deduped = new Map(existingTrades.map((trade) => [trade.id, trade] as const));
+    for (const trade of incomingTrades) {
+      deduped.set(trade.id, trade);
+    }
+
+    return [...deduped.values()].sort(
+      (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    );
   }
 
   private async overlayKrakenPublicPrice(positions: PositionSnapshot[]): Promise<PositionSnapshot[]> {

@@ -265,7 +265,11 @@ export class NautilusAdapter implements EngineAdapter {
       return null;
     }
 
-    return parseSessionTelemetry(artifactPath);
+    try {
+      return await parseSessionTelemetry(artifactPath);
+    } catch {
+      return null;
+    }
   }
 
   private buildSimulatedBacktest(request: BacktestRequest): BacktestResult {

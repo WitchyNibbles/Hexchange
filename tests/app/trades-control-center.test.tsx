@@ -5,7 +5,26 @@ import { TradesRoute } from "../../app/routes/trades";
 describe("trades control center", () => {
   it("renders risk settings and reset controls", async () => {
     const responses = {
-      "/api/trades": [],
+      "/api/trades": [
+        {
+          id: "trade-kraken-entry",
+          strategyId: "crypto-breakout",
+          symbol: "BTCUSD",
+          market: "crypto",
+          side: "buy",
+          quantity: 0.021,
+          price: 64688,
+          feeUsd: 1.36,
+          realizedPnlUsd: 0,
+          expectedEdgeBps: 148,
+          explanation: "Kraken runtime telemetry executed the active crypto validation leg.",
+          createdAt: "2026-05-24T12:04:00.000Z",
+          venue: "kraken",
+          executionMode: "paper",
+          runtimeSource: "nautilus_trader",
+          sessionId: "paper-crypto-breakout",
+        },
+      ],
       "/api/system/portfolio": {
         positions: [],
         openOrders: [],
@@ -110,6 +129,8 @@ describe("trades control center", () => {
     expect(screen.getByText(/credentials loaded for kraken adapter/i)).toBeInTheDocument();
     expect(screen.getByText(/interactive brokers is optional for now because stock strategies are simulation-only/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation only: stock execution is disabled until a real stock broker is added/i)).toBeInTheDocument();
+    expect(screen.getByText(/kraken · paper · nautilus_trader/i)).toBeInTheDocument();
+    expect(screen.getByText(/session paper-crypto-breakout/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset kill switch/i })).toBeInTheDocument();
   });
 });

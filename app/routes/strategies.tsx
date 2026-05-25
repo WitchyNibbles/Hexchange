@@ -70,6 +70,15 @@ export function StrategiesRoute() {
                   : "No backtest has been recorded yet."}
               </p>
             </div>
+            <div className="validation-report">
+              <strong>Paper record</strong>
+              <p>
+                cycles {strategy.paperValidationStats.cycles} · completed {strategy.paperValidationStats.completedCycles} ·
+                {" "}win rate {strategy.paperValidationStats.winRatePct.toFixed(2)}% · avg return{" "}
+                {strategy.paperValidationStats.averageReturnPct.toFixed(2)}% · pnl $
+                {strategy.paperValidationStats.cumulativeRealizedPnlUsd.toFixed(2)}
+              </p>
+            </div>
             {strategy.lastPaperCycle ? (
               <div className="validation-report">
                 <strong>Last paper cycle</strong>

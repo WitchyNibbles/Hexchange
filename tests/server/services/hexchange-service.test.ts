@@ -12,6 +12,21 @@ async function createTempDir(): Promise<string> {
   return dir;
 }
 
+async function waitForPaperCycleCompletion(service: HexchangeService, strategyId: string, timeoutMs = 4000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await service.refreshRuntimeTelemetry();
+    const positions = service.getPortfolioSnapshot().positions.filter((position) => position.symbol === "BTCUSD");
+    if (positions.length === 0 && service.getManagedSession(strategyId) === null) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for ${strategyId} paper cycle completion`);
+}
+
 async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
   let entries: string[] = [];
   try {
@@ -124,6 +139,7 @@ describe("hexchange service persistence", () => {
     process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688";
 
     const service = await createHexchangeService(appDir);
 
@@ -227,8 +243,7 @@ describe("hexchange service persistence", () => {
 
     await service.runStrategyBacktest("crypto-breakout");
     await service.startPaperSession("crypto-breakout");
-    await new Promise((resolve) => setTimeout(resolve, 1400));
-    await service.refreshRuntimeTelemetry();
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
 
     const portfolio = service.getPortfolioSnapshot();
     const trades = service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout");
@@ -236,9 +251,30 @@ describe("hexchange service persistence", () => {
     expect(portfolio.positions).toEqual([]);
     expect(trades).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ side: "buy", quantity: 0.021 }),
-        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
-        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+        expect.objectContaining({
+          side: "buy",
+          quantity: 0.021,
+          venue: "kraken",
+          executionMode: "paper",
+          runtimeSource: "nautilus_trader",
+          sessionId: expect.stringMatching(/^paper-crypto-breakout-/),
+        }),
+        expect.objectContaining({
+          side: "sell",
+          quantity: 0.0105,
+          venue: "kraken",
+          executionMode: "paper",
+          runtimeSource: "nautilus_trader",
+          sessionId: expect.stringMatching(/^paper-crypto-breakout-/),
+        }),
+        expect.objectContaining({
+          side: "sell",
+          quantity: 0.0105,
+          venue: "kraken",
+          executionMode: "paper",
+          runtimeSource: "nautilus_trader",
+          sessionId: expect.stringMatching(/^paper-crypto-breakout-/),
+        }),
       ]),
     );
     expect(trades.some((trade) => trade.realizedPnlUsd > 0)).toBe(true);
@@ -258,6 +294,62 @@ describe("hexchange service persistence", () => {
     const armedAfterCompletion = await service.armLiveStrategy("crypto-breakout");
     expect(armedAfterCompletion.stage).toBe("live");
     expect(service.getSystemStatus().mode).toBe("live");
+  }, 20_000);
+
+  it("preserves prior Kraken paper cycles as validation history", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+    const firstCycleTradeIds = new Set(
+      service
+        .listTrades()
+        .filter((trade) => trade.strategyId === "crypto-breakout")
+        .map((trade) => trade.id),
+    );
+    const firstCycleSessionIds = new Set(
+      service
+        .listTrades()
+        .filter((trade) => trade.strategyId === "crypto-breakout")
+        .map((trade) => trade.sessionId),
+    );
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
+    const allCycleTrades = service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout");
+    const sessionIds = new Set(allCycleTrades.map((trade) => trade.sessionId));
+
+    expect(allCycleTrades).toHaveLength(6);
+    expect(sessionIds.size).toBe(2);
+    expect([...sessionIds]).toEqual(expect.arrayContaining([...firstCycleSessionIds]));
+    expect(allCycleTrades.some((trade) => !firstCycleTradeIds.has(trade.id))).toBe(true);
+    const updatedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
+    expect(updatedStrategy?.lastPaperCycle).toEqual(
+      expect.objectContaining({
+        status: "completed",
+        exitCount: 2,
+      }),
+    );
+    expect(updatedStrategy?.paperValidationStats).toEqual(
+      expect.objectContaining({
+        cycles: 2,
+        completedCycles: 2,
+        cumulativeRealizedPnlUsd: expect.any(Number),
+        averageReturnPct: expect.any(Number),
+        winRatePct: 100,
+      }),
+    );
   }, 20_000);
 
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {

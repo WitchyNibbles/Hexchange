@@ -45,6 +45,13 @@ export interface StrategySummary {
   operatorWarning: string | null;
   liveEligible: boolean;
   validationReport: string[];
+  paperValidationStats: {
+    cycles: number;
+    completedCycles: number;
+    cumulativeRealizedPnlUsd: number;
+    averageReturnPct: number;
+    winRatePct: number;
+  };
   lastPaperCycle: {
     status: "completed" | "running";
     realizedPnlUsd: number;

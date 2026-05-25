@@ -51,6 +51,13 @@ describe("strategy cockpit", () => {
             exitCount: 2,
             completedAt: "2026-05-24T08:40:00.000Z",
           },
+          paperValidationStats: {
+            cycles: 4,
+            completedCycles: 3,
+            cumulativeRealizedPnlUsd: 26.41,
+            averageReturnPct: 0.58,
+            winRatePct: 66.67,
+          },
           lastBacktest: {
             strategyId: "stock-momentum",
             runId: "backtest-stock-momentum",
@@ -123,6 +130,8 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
     expect(screen.getByText(/last paper cycle/i)).toBeInTheDocument();
     expect(screen.getByText(/completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/paper record/i)).toBeInTheDocument();
+    expect(screen.getByText(/cycles 4 · completed 3 · win rate 66.67% · avg return 0.58% · pnl \$26.41/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation session/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop simulation/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();

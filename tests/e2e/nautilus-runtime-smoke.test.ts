@@ -85,7 +85,7 @@ describe("nautilus runtime smoke", () => {
     expect(session.body.paperSessionActive).toBe(true);
     expect(session.body.paperSession).toEqual(
       expect.objectContaining({
-        sessionId: "paper-stock-momentum",
+        sessionId: expect.stringMatching(/^paper-stock-momentum-/),
       }),
     );
 

@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     worker = subcommands.add_parser("session-worker")
     worker.add_argument("--strategy-id", required=True)
     worker.add_argument("--runs-dir", required=True)
+    worker.add_argument("--session-id", required=True)
 
     return parser
 
@@ -51,7 +52,7 @@ def main() -> None:
     elif args.command == "session-worker":
         from .runners.session import session_worker
 
-        session_worker(args.strategy_id, args.runs_dir)
+        session_worker(args.strategy_id, args.runs_dir, args.session_id)
         return
     else:
         artifact_path = runtime_status(args.runs_dir)

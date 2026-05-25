@@ -87,6 +87,10 @@ export function TradesRoute() {
               <div>
                 <strong>{trade.symbol}</strong>
                 <p>{trade.explanation}</p>
+                <p>
+                  {[trade.venue, trade.executionMode, trade.runtimeSource].filter(Boolean).join(" · ")}
+                  {trade.sessionId ? ` · session ${trade.sessionId}` : ""}
+                </p>
               </div>
               <div>
                 <span>{trade.side}</span>
