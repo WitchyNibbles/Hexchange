@@ -82,6 +82,16 @@ describe("operator flow", () => {
       ]),
     );
 
+    const initialCampaign = await request(app).get("/api/control/validation-campaign");
+    expect(initialCampaign.status).toBe(200);
+    expect(initialCampaign.body).toEqual(
+      expect.objectContaining({
+        observedHoursTarget: 24,
+        completedCyclesTarget: 10,
+        campaignReady: false,
+      }),
+    );
+
     const events = await request(app).get("/api/events");
     expect(events.status).toBe(200);
     expect(events.body[0]?.body).toMatch(/interactive brokers|kraken|nautilus/i);
@@ -105,6 +115,15 @@ describe("operator flow", () => {
     expect(startPaper.body.stage).toBe("paper");
 
     await waitForCompletedCycles(app, 2);
+
+    const activeCampaign = await request(app).get("/api/control/validation-campaign");
+    expect(activeCampaign.status).toBe(200);
+    expect(activeCampaign.body).toEqual(
+      expect.objectContaining({
+        completedCycles: expect.any(Number),
+        firstObservedCycleAt: expect.any(String),
+      }),
+    );
 
     const stockLiveAttempt = await request(app).post("/api/strategies/stock-momentum/arm-live");
     expect(stockLiveAttempt.status).toBe(400);

@@ -93,6 +93,17 @@ describe("dashboard route", () => {
           lastBacktest: null,
         },
       ],
+      "/api/control/validation-campaign": {
+        observedHoursTarget: 24,
+        completedCyclesTarget: 10,
+        observedHours: 0.1,
+        completedCycles: 3,
+        firstObservedCycleAt: "2026-05-24T11:52:00.000Z",
+        lastCompletedCycleAt: "2026-05-24T12:00:00.000Z",
+        readyCryptoStrategies: 1,
+        unresolvedCryptoEvidenceChecks: 0,
+        campaignReady: false,
+      },
       "/api/trades": [
         {
           id: "trade-kraken-exit",

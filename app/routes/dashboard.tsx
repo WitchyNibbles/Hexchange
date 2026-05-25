@@ -1,6 +1,12 @@
-import { getEvents, getStrategies, getSystemStatus, getTrades } from "../lib/api";
+import { getEvents, getStrategies, getSystemStatus, getTrades, getValidationCampaignSummary } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { EventSummary, StrategySummary, SystemStatus, TradeSummary } from "../../src/shared/contracts";
+import type {
+  EventSummary,
+  StrategySummary,
+  SystemStatus,
+  TradeSummary,
+  ValidationCampaignSummary,
+} from "../../src/shared/contracts";
 import { ObservatoryPanel } from "../components/observatory-panel";
 import { FamiliarStatus } from "../components/familiar-status";
 import { RitualLog } from "../components/ritual-log";
@@ -19,15 +25,27 @@ const initialStatus: SystemStatus = {
   dataFreshness: "fresh",
 };
 
-const FORWARD_VALIDATION_TARGET_HOURS = 24;
-const FORWARD_VALIDATION_TARGET_CYCLES = 10;
+const initialValidationCampaign: ValidationCampaignSummary = {
+  observedHoursTarget: 24,
+  completedCyclesTarget: 10,
+  observedHours: 0,
+  completedCycles: 0,
+  firstObservedCycleAt: null,
+  lastCompletedCycleAt: null,
+  readyCryptoStrategies: 0,
+  unresolvedCryptoEvidenceChecks: 0,
+  campaignReady: false,
+};
 
 export function DashboardRoute() {
   const status = usePollingJson(getSystemStatus, initialStatus);
   const events = usePollingJson<EventSummary[]>(getEvents, []);
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const strategies = usePollingJson<StrategySummary[]>(getStrategies, []);
-  const cryptoStrategies = strategies.filter((strategy) => strategy.market === "crypto");
+  const validationCampaign = usePollingJson<ValidationCampaignSummary>(
+    getValidationCampaignSummary,
+    initialValidationCampaign,
+  );
   const paperCycles = strategies.reduce((sum, strategy) => sum + strategy.paperValidationStats.cycles, 0);
   const completedPaperCycles = strategies.reduce(
     (sum, strategy) => sum + strategy.paperValidationStats.completedCycles,
@@ -43,34 +61,6 @@ export function DashboardRoute() {
       ? completedStrategies.reduce((sum, strategy) => sum + strategy.paperValidationStats.winRatePct, 0) /
         completedStrategies.length
       : 0;
-  const firstObservedCycleAt = cryptoStrategies
-    .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.startedAt))
-    .filter((value): value is string => Boolean(value))
-    .sort()[0] ?? null;
-  const lastCompletedCycleAt =
-    cryptoStrategies
-      .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.completedAt))
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1) ?? null;
-  const readyCryptoStrategies = cryptoStrategies.filter((strategy) => strategy.liveEvidenceProgress.ready).length;
-  const unresolvedCryptoEvidenceChecks = cryptoStrategies.reduce(
-    (sum, strategy) =>
-      sum + strategy.liveEvidenceProgress.items.filter((item) => item.status !== "pass").length,
-    0,
-  );
-  const observedValidationHours =
-    firstObservedCycleAt && lastCompletedCycleAt
-      ? Number(
-          (
-            (new Date(lastCompletedCycleAt).getTime() - new Date(firstObservedCycleAt).getTime()) /
-            (1000 * 60 * 60)
-          ).toFixed(1),
-        )
-      : 0;
-  const validationCampaignReady =
-    observedValidationHours >= FORWARD_VALIDATION_TARGET_HOURS &&
-    completedPaperCycles >= FORWARD_VALIDATION_TARGET_CYCLES;
 
   return (
     <div className="page-grid">
@@ -106,22 +96,22 @@ export function DashboardRoute() {
         <div className="validation-report">
           <strong>Forward validation window</strong>
           <p>
-            First observed cycle {firstObservedCycleAt ?? "not started"} · last completed cycle{" "}
-            {lastCompletedCycleAt ?? "none yet"}
+            First observed cycle {validationCampaign.firstObservedCycleAt ?? "not started"} · last completed cycle{" "}
+            {validationCampaign.lastCompletedCycleAt ?? "none yet"}
           </p>
           <p>
-            {readyCryptoStrategies} crypto strategies currently satisfy the live evidence gate ·{" "}
-            {unresolvedCryptoEvidenceChecks} evidence checks still unresolved
+            {validationCampaign.readyCryptoStrategies} crypto strategies currently satisfy the live evidence gate ·{" "}
+            {validationCampaign.unresolvedCryptoEvidenceChecks} evidence checks still unresolved
           </p>
         </div>
         <div className="validation-report">
           <strong>Validation campaign target</strong>
           <p>
-            {observedValidationHours.toFixed(1)}/{FORWARD_VALIDATION_TARGET_HOURS} observed hours ·{" "}
-            {completedPaperCycles}/{FORWARD_VALIDATION_TARGET_CYCLES} completed cycles
+            {validationCampaign.observedHours.toFixed(1)}/{validationCampaign.observedHoursTarget} observed hours ·{" "}
+            {validationCampaign.completedCycles}/{validationCampaign.completedCyclesTarget} completed cycles
           </p>
           <p>
-            {validationCampaignReady
+            {validationCampaign.campaignReady
               ? "Forward validation target reached for this MVP campaign."
               : "Keep Kraken paper validation running until both the observed-hour and completed-cycle targets are met."}
           </p>

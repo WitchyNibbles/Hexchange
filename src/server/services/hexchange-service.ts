@@ -8,6 +8,7 @@ import type {
   StrategySummary,
   SystemStatus,
   TradeSummary,
+  ValidationCampaignSummary,
 } from "../../shared/contracts";
 import type { EventSummary } from "../../shared/contracts";
 import type { NormalizedOrder, OrderIntent } from "../domain/order";
@@ -35,6 +36,9 @@ import { buildReferenceStrategies } from "../strategies/strategy-registry";
 function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+const FORWARD_VALIDATION_TARGET_HOURS = 24;
+const FORWARD_VALIDATION_TARGET_CYCLES = 10;
 
 export class HexchangeService {
   private readonly marketDataService = new MarketDataService();
@@ -322,6 +326,55 @@ export class HexchangeService {
       riskSettings: this.getRiskSettings(),
       killSwitchEngaged: this.killSwitch.getState().engaged,
     });
+  }
+
+  getValidationCampaignSummary(): ValidationCampaignSummary {
+    const strategies = this.listStrategies();
+    const cryptoStrategies = strategies.filter((strategy) => strategy.market === "crypto");
+    const completedCycles = strategies.reduce(
+      (sum, strategy) => sum + strategy.paperValidationStats.completedCycles,
+      0,
+    );
+    const firstObservedCycleAt = cryptoStrategies
+      .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.startedAt))
+      .filter((value): value is string => Boolean(value))
+      .sort()[0] ?? null;
+    const lastCompletedCycleAt =
+      cryptoStrategies
+        .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.completedAt))
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+    const observedHours =
+      firstObservedCycleAt && lastCompletedCycleAt
+        ? Number(
+            (
+              (new Date(lastCompletedCycleAt).getTime() - new Date(firstObservedCycleAt).getTime()) /
+              (1000 * 60 * 60)
+            ).toFixed(1),
+          )
+        : 0;
+    const readyCryptoStrategies = cryptoStrategies.filter((strategy) => strategy.liveEvidenceProgress.ready).length;
+    const unresolvedCryptoEvidenceChecks = cryptoStrategies.reduce(
+      (sum, strategy) =>
+        sum + strategy.liveEvidenceProgress.items.filter((item) => item.status !== "pass").length,
+      0,
+    );
+    const campaignReady =
+      observedHours >= FORWARD_VALIDATION_TARGET_HOURS &&
+      completedCycles >= FORWARD_VALIDATION_TARGET_CYCLES;
+
+    return {
+      observedHoursTarget: FORWARD_VALIDATION_TARGET_HOURS,
+      completedCyclesTarget: FORWARD_VALIDATION_TARGET_CYCLES,
+      observedHours,
+      completedCycles,
+      firstObservedCycleAt,
+      lastCompletedCycleAt,
+      readyCryptoStrategies,
+      unresolvedCryptoEvidenceChecks,
+      campaignReady,
+    };
   }
 
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {

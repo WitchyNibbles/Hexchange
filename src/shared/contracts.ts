@@ -147,3 +147,15 @@ export interface LiveReadinessReport {
   checks: LiveReadinessCheck[];
   strategies: StrategyLiveReadiness[];
 }
+
+export interface ValidationCampaignSummary {
+  observedHoursTarget: number;
+  completedCyclesTarget: number;
+  observedHours: number;
+  completedCycles: number;
+  firstObservedCycleAt: string | null;
+  lastCompletedCycleAt: string | null;
+  readyCryptoStrategies: number;
+  unresolvedCryptoEvidenceChecks: number;
+  campaignReady: boolean;
+}

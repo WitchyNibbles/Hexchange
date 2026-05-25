@@ -7,6 +7,7 @@ import type {
   StrategySummary,
   SystemStatus,
   TradeSummary,
+  ValidationCampaignSummary,
 } from "../../src/shared/contracts";
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -47,6 +48,10 @@ export function getRiskSettings(): Promise<RiskSettings> {
 
 export function getLiveReadinessReport(): Promise<LiveReadinessReport> {
   return fetchJson("/api/control/live-readiness");
+}
+
+export function getValidationCampaignSummary(): Promise<ValidationCampaignSummary> {
+  return fetchJson("/api/control/validation-campaign");
 }
 
 export async function postJson<T>(path: string, body?: Record<string, unknown>): Promise<T> {

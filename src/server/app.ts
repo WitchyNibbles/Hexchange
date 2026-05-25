@@ -97,6 +97,11 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.getLiveReadinessReport());
   }));
 
+  app.get("/api/control/validation-campaign", asyncRoute(async (_request, response) => {
+    await service.refreshRuntimeTelemetry();
+    response.json(service.getValidationCampaignSummary());
+  }));
+
   app.patch("/api/control/settings", asyncRoute(async (request, response) => {
     response.json(await service.updateRiskSettings(request.body ?? {}));
   }));
