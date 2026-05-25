@@ -64,6 +64,8 @@ const defaultLiveReadiness: LiveReadinessReport = {
 };
 
 const defaultValidationCampaign: ValidationCampaignSummary = {
+  status: "idle",
+  summary: "Kraken paper validation has not started yet.",
   observedHoursTarget: 24,
   completedCyclesTarget: 10,
   observedHours: 0,
@@ -210,6 +212,9 @@ export function TradesRoute() {
         </div>
         <div className="validation-report">
           <strong>Validation campaign</strong>
+          <p>
+            {validationCampaign.status} · {validationCampaign.summary}
+          </p>
           <p>
             {validationCampaign.observedHours.toFixed(1)}/{validationCampaign.observedHoursTarget} observed hours ·{" "}
             {validationCampaign.completedCycles}/{validationCampaign.completedCyclesTarget} completed cycles

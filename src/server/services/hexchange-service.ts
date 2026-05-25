@@ -70,6 +70,10 @@ export class HexchangeService {
     observedHours: readNumericEnv("HEXCHANGE_VALIDATION_TARGET_HOURS", 24),
     completedCycles: readNumericEnv("HEXCHANGE_VALIDATION_TARGET_CYCLES", 10),
   };
+  private readonly validationCampaignStaleHours = readNumericEnv(
+    "HEXCHANGE_VALIDATION_STALE_HOURS",
+    2,
+  );
   private strategies: StrategyState[] = buildReferenceStrategies(this.marketDataService);
   private orders: NormalizedOrder[] = [];
   private positions: PositionSnapshot[] = [];
@@ -380,8 +384,34 @@ export class HexchangeService {
     const campaignReady =
       observedHours >= this.validationCampaignTargets.observedHours &&
       completedCycles >= this.validationCampaignTargets.completedCycles;
+    const hoursSinceLastCompletedCycle =
+      lastCompletedCycleAt
+        ? (Date.now() - new Date(lastCompletedCycleAt).getTime()) / (1000 * 60 * 60)
+        : null;
+    const stalled =
+      !campaignReady &&
+      completedCycles > 0 &&
+      hoursSinceLastCompletedCycle !== null &&
+      hoursSinceLastCompletedCycle >= this.validationCampaignStaleHours;
+    const status: ValidationCampaignSummary["status"] = campaignReady
+      ? "ready"
+      : !firstObservedCycleAt
+        ? "idle"
+        : stalled
+          ? "stalled"
+          : "collecting";
+    const summary =
+      status === "ready"
+        ? "Forward validation target reached."
+        : status === "idle"
+          ? "Kraken paper validation has not started yet."
+          : status === "stalled"
+            ? "Kraken paper validation looks stale. Restart or inspect the paper runtime."
+            : "Kraken paper validation is actively collecting forward evidence.";
 
     return {
+      status,
+      summary,
       observedHoursTarget: this.validationCampaignTargets.observedHours,
       completedCyclesTarget: this.validationCampaignTargets.completedCycles,
       observedHours,

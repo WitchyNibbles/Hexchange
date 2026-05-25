@@ -92,6 +92,7 @@ afterEach(async () => {
   delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
   delete process.env.HEXCHANGE_VALIDATION_TARGET_HOURS;
   delete process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES;
+  delete process.env.HEXCHANGE_VALIDATION_STALE_HOURS;
 });
 
 describe("hexchange service persistence", () => {
@@ -499,6 +500,8 @@ describe("hexchange service persistence", () => {
 
     expect(campaign).toEqual(
       expect.objectContaining({
+        status: "ready",
+        summary: "Forward validation target reached.",
         observedHoursTarget: 0,
         completedCyclesTarget: 1,
         campaignReady: true,
@@ -513,6 +516,36 @@ describe("hexchange service persistence", () => {
           title: "Forward validation target reached",
         }),
       ]),
+    );
+  }, 20_000);
+
+  it("marks the validation campaign stalled when evidence stops progressing for too long", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "24";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "10";
+    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "0";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
+    const campaign = service.getValidationCampaignSummary();
+
+    expect(campaign).toEqual(
+      expect.objectContaining({
+        status: "stalled",
+        summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
+        campaignReady: false,
+      }),
     );
   }, 20_000);
 
