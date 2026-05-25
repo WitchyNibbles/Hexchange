@@ -60,6 +60,8 @@ export class HexchangeService {
   private trades: TradeLogEntry[] = [];
   private backtests: BacktestResult[] = [];
   private managedSessions = new Map<string, PaperSession>();
+  private runtimeHeartbeat: NodeJS.Timeout | null = null;
+  private runtimeHeartbeatRunning = false;
 
   constructor(
     appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange",
@@ -173,6 +175,35 @@ export class HexchangeService {
 
   getManagedSession(strategyId: string): PaperSession | null {
     return this.managedSessions.get(strategyId) ?? null;
+  }
+
+  startRuntimeHeartbeat(intervalMs = 1000): void {
+    if (this.runtimeHeartbeat) {
+      return;
+    }
+
+    this.runtimeHeartbeat = setInterval(() => {
+      if (this.runtimeHeartbeatRunning) {
+        return;
+      }
+
+      this.runtimeHeartbeatRunning = true;
+      void this.refreshRuntimeTelemetry().finally(() => {
+        this.runtimeHeartbeatRunning = false;
+      });
+    }, intervalMs);
+
+    this.runtimeHeartbeat.unref?.();
+  }
+
+  stopRuntimeHeartbeat(): void {
+    if (!this.runtimeHeartbeat) {
+      return;
+    }
+
+    clearInterval(this.runtimeHeartbeat);
+    this.runtimeHeartbeat = null;
+    this.runtimeHeartbeatRunning = false;
   }
 
   async listEvents(): Promise<EventSummary[]> {

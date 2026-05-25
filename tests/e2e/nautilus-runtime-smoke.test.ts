@@ -141,4 +141,54 @@ describe("nautilus runtime smoke", () => {
       ]),
     );
   }, 10_000);
+
+  it("keeps crypto paper validation running with the background heartbeat", async () => {
+    const appDir = await createTempDir("hexchange-nautilus-app-");
+    const runsDir = await createTempDir("hexchange-nautilus-runs-");
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_APP_DIR = appDir;
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const service = await createHexchangeService(appDir);
+    service.startRuntimeHeartbeat(100);
+    const app = createServerApp(service);
+
+    try {
+      const automation = await request(app)
+        .patch("/api/strategies/crypto-breakout/paper-automation")
+        .send({ autoPaperValidationEnabled: true });
+      expect(automation.status).toBe(200);
+      expect(automation.body.autoPaperValidationEnabled).toBe(true);
+
+      const session = await request(app).post("/api/strategies/crypto-breakout/paper-session");
+      expect(session.status).toBe(200);
+
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+
+      const strategies = await request(app).get("/api/strategies");
+      expect(strategies.status).toBe(200);
+      expect(strategies.body).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "crypto-breakout",
+            autoPaperValidationEnabled: true,
+            paperSessionActive: true,
+            paperValidationStats: expect.objectContaining({
+              completedCycles: expect.any(Number),
+            }),
+          }),
+        ]),
+      );
+      const cryptoStrategy = strategies.body.find((strategy: { id: string }) => strategy.id === "crypto-breakout");
+      expect(cryptoStrategy.paperValidationStats.completedCycles).toBeGreaterThanOrEqual(1);
+      expect(cryptoStrategy.paperSession.sessionId).toMatch(/^paper-crypto-breakout-/);
+    } finally {
+      service.stopRuntimeHeartbeat();
+    }
+  }, 10_000);
 });
