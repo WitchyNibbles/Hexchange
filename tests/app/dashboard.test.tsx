@@ -138,5 +138,8 @@ describe("dashboard route", () => {
     expect(screen.getByText(/forward validation window/i)).toBeInTheDocument();
     expect(screen.getByText(/first observed cycle 2026-05-24T11:52:00.000Z · last completed cycle 2026-05-24T12:00:00.000Z/i)).toBeInTheDocument();
     expect(screen.getByText(/1 crypto strategies currently satisfy the live evidence gate · 0 evidence checks still unresolved/i)).toBeInTheDocument();
+    expect(screen.getByText(/validation campaign target/i)).toBeInTheDocument();
+    expect(screen.getByText(/0.1\/24 observed hours · 3\/10 completed cycles/i)).toBeInTheDocument();
+    expect(screen.getByText(/keep kraken paper validation running until both the observed-hour and completed-cycle targets are met/i)).toBeInTheDocument();
   });
 });

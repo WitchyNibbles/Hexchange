@@ -19,6 +19,9 @@ const initialStatus: SystemStatus = {
   dataFreshness: "fresh",
 };
 
+const FORWARD_VALIDATION_TARGET_HOURS = 24;
+const FORWARD_VALIDATION_TARGET_CYCLES = 10;
+
 export function DashboardRoute() {
   const status = usePollingJson(getSystemStatus, initialStatus);
   const events = usePollingJson<EventSummary[]>(getEvents, []);
@@ -56,6 +59,18 @@ export function DashboardRoute() {
       sum + strategy.liveEvidenceProgress.items.filter((item) => item.status !== "pass").length,
     0,
   );
+  const observedValidationHours =
+    firstObservedCycleAt && lastCompletedCycleAt
+      ? Number(
+          (
+            (new Date(lastCompletedCycleAt).getTime() - new Date(firstObservedCycleAt).getTime()) /
+            (1000 * 60 * 60)
+          ).toFixed(1),
+        )
+      : 0;
+  const validationCampaignReady =
+    observedValidationHours >= FORWARD_VALIDATION_TARGET_HOURS &&
+    completedPaperCycles >= FORWARD_VALIDATION_TARGET_CYCLES;
 
   return (
     <div className="page-grid">
@@ -97,6 +112,18 @@ export function DashboardRoute() {
           <p>
             {readyCryptoStrategies} crypto strategies currently satisfy the live evidence gate ·{" "}
             {unresolvedCryptoEvidenceChecks} evidence checks still unresolved
+          </p>
+        </div>
+        <div className="validation-report">
+          <strong>Validation campaign target</strong>
+          <p>
+            {observedValidationHours.toFixed(1)}/{FORWARD_VALIDATION_TARGET_HOURS} observed hours ·{" "}
+            {completedPaperCycles}/{FORWARD_VALIDATION_TARGET_CYCLES} completed cycles
+          </p>
+          <p>
+            {validationCampaignReady
+              ? "Forward validation target reached for this MVP campaign."
+              : "Keep Kraken paper validation running until both the observed-hour and completed-cycle targets are met."}
           </p>
         </div>
       </section>
