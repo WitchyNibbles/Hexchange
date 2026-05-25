@@ -162,7 +162,7 @@ describe("hexchange service persistence", () => {
     process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
-    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688";
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
 
     const service = await createHexchangeService(appDir);
 
@@ -171,6 +171,13 @@ describe("hexchange service persistence", () => {
     await expect(service.armLiveStrategy("crypto-breakout")).rejects.toThrow(/real nautilus backtest/i);
 
     await service.runStrategyBacktest("crypto-breakout");
+
+    await expect(service.armLiveStrategy("crypto-breakout")).rejects.toThrow(/at least 2 Kraken paper cycles/i);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
 
     const armed = await service.armLiveStrategy("crypto-breakout");
     expect(armed.stage).toBe("live");
@@ -314,6 +321,11 @@ describe("hexchange service persistence", () => {
       }),
     );
     expect(service.getSystemStatus().mode).toBe("research");
+    await expect(service.armLiveStrategy("crypto-breakout")).rejects.toThrow(/at least 2 Kraken paper cycles/i);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
     const armedAfterCompletion = await service.armLiveStrategy("crypto-breakout");
     expect(armedAfterCompletion.stage).toBe("live");
     expect(service.getSystemStatus().mode).toBe("live");

@@ -62,6 +62,7 @@ export class HexchangeService {
   private managedSessions = new Map<string, PaperSession>();
   private runtimeHeartbeat: NodeJS.Timeout | null = null;
   private runtimeHeartbeatRunning = false;
+  private runtimeHeartbeatTask: Promise<void> | null = null;
 
   constructor(
     appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange",
@@ -118,9 +119,9 @@ export class HexchangeService {
   listStrategies(): StrategySummary[] {
     return this.strategies.map((strategy) => {
       const simulationOnly = strategy.market === "stock";
-      const validation = buildValidationReport(strategy);
-      const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
       const paperValidationStats = this.buildPaperValidationStats(strategy.id);
+      const validation = buildValidationReport(strategy, paperValidationStats);
+      const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
 
       return {
         id: strategy.id,
@@ -188,22 +189,30 @@ export class HexchangeService {
       }
 
       this.runtimeHeartbeatRunning = true;
-      void this.refreshRuntimeTelemetry().finally(() => {
+      this.runtimeHeartbeatTask = this.refreshRuntimeTelemetry().finally(() => {
         this.runtimeHeartbeatRunning = false;
+        this.runtimeHeartbeatTask = null;
       });
     }, intervalMs);
 
     this.runtimeHeartbeat.unref?.();
   }
 
-  stopRuntimeHeartbeat(): void {
+  async stopRuntimeHeartbeat(): Promise<void> {
     if (!this.runtimeHeartbeat) {
+      if (this.runtimeHeartbeatTask) {
+        await this.runtimeHeartbeatTask;
+      }
       return;
     }
 
     clearInterval(this.runtimeHeartbeat);
     this.runtimeHeartbeat = null;
-    this.runtimeHeartbeatRunning = false;
+    if (this.runtimeHeartbeatTask) {
+      await this.runtimeHeartbeatTask;
+    } else {
+      this.runtimeHeartbeatRunning = false;
+    }
   }
 
   async listEvents(): Promise<EventSummary[]> {
@@ -291,11 +300,19 @@ export class HexchangeService {
 
   async getLiveReadinessReport(): Promise<LiveReadinessReport> {
     const engineStatus = await this.getEngineStatus();
+    const paperValidationStatsByStrategy = new Map(
+      this.strategies.map((strategy) => [strategy.id, this.buildPaperValidationStats(strategy.id)] as const),
+    );
+    const lastPaperCycleByStrategy = new Map(
+      this.strategies.map((strategy) => [strategy.id, this.buildLastPaperCycleSummary(strategy.id)] as const),
+    );
     return buildLiveReadinessReport({
       engineStatus,
       strategies: this.strategies,
       backtests: this.backtests,
       managedSessions: this.managedSessions,
+      paperValidationStatsByStrategy,
+      lastPaperCycleByStrategy,
       riskSettings: this.getRiskSettings(),
       killSwitchEngaged: this.killSwitch.getState().engaged,
     });
@@ -488,7 +505,12 @@ export class HexchangeService {
   async armLiveStrategy(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const latestBacktest = this.backtests.find((item) => item.strategyId === strategyId) ?? null;
-    const armed = this.liveTradingController.armStrategy(strategy, latestBacktest, this.buildLastPaperCycleSummary(strategyId));
+    const armed = this.liveTradingController.armStrategy(
+      strategy,
+      latestBacktest,
+      this.buildLastPaperCycleSummary(strategyId),
+      this.buildPaperValidationStats(strategyId),
+    );
     this.updateStrategy(armed);
 
     await this.recordEvent({

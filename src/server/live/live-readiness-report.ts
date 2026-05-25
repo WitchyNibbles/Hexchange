@@ -1,6 +1,14 @@
-import type { EngineStatus, LiveReadinessCheck, LiveReadinessReport, RiskSettings, StrategyLiveReadiness } from "../../shared/contracts";
+import type {
+  EngineStatus,
+  LiveReadinessCheck,
+  LiveReadinessReport,
+  PaperValidationStats,
+  RiskSettings,
+  StrategyLiveReadiness,
+} from "../../shared/contracts";
 import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult, PaperSession } from "../engine/types";
+import type { PaperCycleEvidence } from "./live-armament-policy";
 import { buildValidationReport } from "../strategies/validation-report";
 
 const MAX_SAFE_LIVE_ROLLOUT_USD = 1000;
@@ -10,6 +18,8 @@ interface BuildLiveReadinessReportInput {
   strategies: StrategyState[];
   backtests: BacktestResult[];
   managedSessions: Map<string, PaperSession>;
+  paperValidationStatsByStrategy: Map<string, PaperValidationStats>;
+  lastPaperCycleByStrategy: Map<string, PaperCycleEvidence | null>;
   riskSettings: RiskSettings;
   killSwitchEngaged: boolean;
 }
@@ -123,13 +133,23 @@ function buildStrategyReadiness(
   strategy: StrategyState,
   backtests: BacktestResult[],
   managedSessions: Map<string, PaperSession>,
+  paperValidationStatsByStrategy: Map<string, PaperValidationStats>,
+  lastPaperCycleByStrategy: Map<string, PaperCycleEvidence | null>,
   engineStatus: EngineStatus,
   killSwitchEngaged: boolean,
 ): StrategyLiveReadiness {
   const blockers: string[] = [];
-  const validation = buildValidationReport(strategy);
+  const paperValidationStats = paperValidationStatsByStrategy.get(strategy.id) ?? {
+    cycles: 0,
+    completedCycles: 0,
+    cumulativeRealizedPnlUsd: 0,
+    averageReturnPct: 0,
+    winRatePct: 0,
+  };
+  const validation = buildValidationReport(strategy, paperValidationStats);
   const lastBacktest = backtests.find((item) => item.strategyId === strategy.id) ?? null;
   const paperSession = managedSessions.get(strategy.id) ?? null;
+  const lastPaperCycle = lastPaperCycleByStrategy.get(strategy.id) ?? null;
   const deploymentMode = strategy.market === "stock" ? "simulation_only" : "kraken_live_candidate";
 
   if (strategy.market === "stock") {
@@ -155,8 +175,8 @@ function buildStrategyReadiness(
     blockers.push("Run a real Nautilus backtest first.");
   }
 
-  if (!paperSession || !strategy.paperSessionActive) {
-    blockers.push("Start an active paper session first.");
+  if ((!paperSession || !strategy.paperSessionActive) && lastPaperCycle?.status !== "completed") {
+    blockers.push("Run at least one completed Kraken paper cycle first.");
   }
 
   if (killSwitchEngaged) {
@@ -199,6 +219,8 @@ export function buildLiveReadinessReport(input: BuildLiveReadinessReportInput): 
       strategy,
       input.backtests,
       input.managedSessions,
+      input.paperValidationStatsByStrategy,
+      input.lastPaperCycleByStrategy,
       input.engineStatus,
       input.killSwitchEngaged,
     ),

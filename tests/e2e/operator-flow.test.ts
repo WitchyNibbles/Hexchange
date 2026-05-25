@@ -7,8 +7,29 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServerApp } from "../../src/server/app";
 import { createHexchangeService } from "../../src/server/services/hexchange-service";
 
+async function waitForCompletedCycles(
+  app: ReturnType<typeof createServerApp>,
+  minimumCompletedCycles: number,
+  timeoutMs = 10000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const strategies = await request(app).get("/api/strategies");
+    const cryptoStrategy = strategies.body.find((strategy: { id: string }) => strategy.id === "crypto-breakout");
+    if (cryptoStrategy?.paperValidationStats?.completedCycles >= minimumCompletedCycles) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for ${minimumCompletedCycles} completed crypto paper cycles`);
+}
+
 describe("operator flow", () => {
   let app: ReturnType<typeof createServerApp>;
+  let service: Awaited<ReturnType<typeof createHexchangeService>>;
   let appDir: string;
   let runsDir: string;
 
@@ -21,16 +42,20 @@ describe("operator flow", () => {
     process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
-    const service = await createHexchangeService();
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    service = await createHexchangeService();
+    service.startRuntimeHeartbeat(100);
     app = createServerApp(service);
   });
 
   afterAll(async () => {
+    await service.stopRuntimeHeartbeat();
     delete process.env.HEXCHANGE_APP_DIR;
     delete process.env.HEXCHANGE_ENGINE_MODE;
     delete process.env.HEXCHANGE_NAUTILUS_PYTHON;
     delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
     delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
+    delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
     await rm(appDir, { recursive: true, force: true });
     await rm(runsDir, { recursive: true, force: true });
   });
@@ -69,9 +94,17 @@ describe("operator flow", () => {
     expect(initialSettings.status).toBe(200);
     expect(initialSettings.body.maxPositionNotionalUsd).toBeGreaterThan(0);
 
+    const enableAutoPaper = await request(app)
+      .patch("/api/strategies/crypto-breakout/paper-automation")
+      .send({ autoPaperValidationEnabled: true });
+    expect(enableAutoPaper.status).toBe(200);
+    expect(enableAutoPaper.body.autoPaperValidationEnabled).toBe(true);
+
     const startPaper = await request(app).post("/api/strategies/crypto-breakout/paper-session");
     expect(startPaper.status).toBe(200);
     expect(startPaper.body.stage).toBe("paper");
+
+    await waitForCompletedCycles(app, 2);
 
     const stockLiveAttempt = await request(app).post("/api/strategies/stock-momentum/arm-live");
     expect(stockLiveAttempt.status).toBe(400);

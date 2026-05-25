@@ -46,13 +46,7 @@ export interface StrategySummary {
   operatorWarning: string | null;
   liveEligible: boolean;
   validationReport: string[];
-  paperValidationStats: {
-    cycles: number;
-    completedCycles: number;
-    cumulativeRealizedPnlUsd: number;
-    averageReturnPct: number;
-    winRatePct: number;
-  };
+  paperValidationStats: PaperValidationStats;
   lastPaperCycle: {
     status: "completed" | "running";
     realizedPnlUsd: number;
@@ -62,6 +56,14 @@ export interface StrategySummary {
     completedAt: string | null;
   } | null;
   lastBacktest: BacktestResult | null;
+}
+
+export interface PaperValidationStats {
+  cycles: number;
+  completedCycles: number;
+  cumulativeRealizedPnlUsd: number;
+  averageReturnPct: number;
+  winRatePct: number;
 }
 
 export interface TradeSummary extends TradeLogEntry {}

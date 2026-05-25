@@ -112,6 +112,44 @@ const cryptoSession: PaperSession = {
   executionMode: "kraken_ready",
 };
 
+const basePaperValidationStatsByStrategy = new Map([
+  [
+    stockStrategy.id,
+    {
+      cycles: 0,
+      completedCycles: 0,
+      cumulativeRealizedPnlUsd: 0,
+      averageReturnPct: 0,
+      winRatePct: 0,
+    },
+  ],
+  [
+    cryptoStrategy.id,
+    {
+      cycles: 2,
+      completedCycles: 2,
+      cumulativeRealizedPnlUsd: 17.32,
+      averageReturnPct: 0.64,
+      winRatePct: 100,
+    },
+  ],
+]);
+
+const baseLastPaperCycleByStrategy = new Map([
+  [stockStrategy.id, null],
+  [
+    cryptoStrategy.id,
+    {
+      status: "completed" as const,
+      realizedPnlUsd: 8.66,
+      entryNotionalUsd: 1358.45,
+      paperReturnPct: 0.64,
+      exitCount: 2,
+      completedAt: "2026-05-25T18:20:26.109554+00:00",
+    },
+  ],
+]);
+
 describe("live readiness report", () => {
   it("marks the crypto platform ready while keeping stocks simulation-only", () => {
     const report = buildLiveReadinessReport({
@@ -122,6 +160,8 @@ describe("live readiness report", () => {
         [stockStrategy.id, stockSession],
         [cryptoStrategy.id, cryptoSession],
       ]),
+      paperValidationStatsByStrategy: basePaperValidationStatsByStrategy,
+      lastPaperCycleByStrategy: baseLastPaperCycleByStrategy,
       riskSettings: baseRiskSettings,
       killSwitchEngaged: false,
     });
@@ -171,6 +211,42 @@ describe("live readiness report", () => {
       strategies: [{ ...stockStrategy, paperSessionActive: false }, { ...cryptoStrategy, paperSessionActive: false }],
       backtests: [],
       managedSessions: new Map<string, PaperSession>(),
+      paperValidationStatsByStrategy: new Map([
+        [
+          stockStrategy.id,
+          {
+            cycles: 0,
+            completedCycles: 0,
+            cumulativeRealizedPnlUsd: 0,
+            averageReturnPct: 0,
+            winRatePct: 0,
+          },
+        ],
+        [
+          cryptoStrategy.id,
+          {
+            cycles: 1,
+            completedCycles: 1,
+            cumulativeRealizedPnlUsd: 8.66,
+            averageReturnPct: 0.64,
+            winRatePct: 100,
+          },
+        ],
+      ]),
+      lastPaperCycleByStrategy: new Map([
+        [stockStrategy.id, null],
+        [
+          cryptoStrategy.id,
+          {
+            status: "completed" as const,
+            realizedPnlUsd: 8.66,
+            entryNotionalUsd: 1358.45,
+            paperReturnPct: 0.64,
+            exitCount: 2,
+            completedAt: "2026-05-25T18:20:26.109554+00:00",
+          },
+        ],
+      ]),
       riskSettings: { ...baseRiskSettings, liveRolloutCapUsd: 2500 },
       killSwitchEngaged: true,
     });
@@ -193,9 +269,9 @@ describe("live readiness report", () => {
     expect(report.strategies[1].blockers).toEqual(
       expect.arrayContaining([
         "Run a real Nautilus backtest first.",
-        "Start an active paper session first.",
         "Reset the kill switch before arming live.",
         "Kraken must be connected for crypto execution.",
+        "Complete at least 2 Kraken paper cycles before live armament.",
       ]),
     );
   });

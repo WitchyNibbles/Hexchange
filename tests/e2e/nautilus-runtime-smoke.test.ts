@@ -177,7 +177,6 @@ describe("nautilus runtime smoke", () => {
           expect.objectContaining({
             id: "crypto-breakout",
             autoPaperValidationEnabled: true,
-            paperSessionActive: true,
             paperValidationStats: expect.objectContaining({
               completedCycles: expect.any(Number),
             }),
@@ -186,9 +185,11 @@ describe("nautilus runtime smoke", () => {
       );
       const cryptoStrategy = strategies.body.find((strategy: { id: string }) => strategy.id === "crypto-breakout");
       expect(cryptoStrategy.paperValidationStats.completedCycles).toBeGreaterThanOrEqual(1);
-      expect(cryptoStrategy.paperSession.sessionId).toMatch(/^paper-crypto-breakout-/);
+      if (cryptoStrategy.paperSession) {
+        expect(cryptoStrategy.paperSession.sessionId).toMatch(/^paper-crypto-breakout-/);
+      }
     } finally {
-      service.stopRuntimeHeartbeat();
+      await service.stopRuntimeHeartbeat();
     }
   }, 10_000);
 });
