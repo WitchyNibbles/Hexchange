@@ -55,6 +55,7 @@ export interface StrategySummary {
     exitCount: number;
     completedAt: string | null;
   } | null;
+  paperCycleHistory: PaperCycleSummary[];
   lastBacktest: BacktestResult | null;
 }
 
@@ -64,6 +65,20 @@ export interface PaperValidationStats {
   cumulativeRealizedPnlUsd: number;
   averageReturnPct: number;
   winRatePct: number;
+}
+
+export interface PaperCycleSummary {
+  sessionId: string;
+  status: "completed" | "running";
+  venue: TradeLogEntry["venue"];
+  executionMode: TradeLogEntry["executionMode"];
+  runtimeSource: TradeLogEntry["runtimeSource"];
+  realizedPnlUsd: number;
+  entryNotionalUsd: number;
+  paperReturnPct: number;
+  exitCount: number;
+  startedAt: string | null;
+  completedAt: string | null;
 }
 
 export interface TradeSummary extends TradeLogEntry {}

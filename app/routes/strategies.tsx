@@ -99,6 +99,20 @@ export function StrategiesRoute() {
                 </p>
               </div>
             ) : null}
+            {strategy.paperCycleHistory.length > 0 ? (
+              <div className="validation-report">
+                <strong>Paper cycle ledger</strong>
+                <ul className="strategy-stats">
+                  {strategy.paperCycleHistory.slice(0, 3).map((cycle) => (
+                    <li key={cycle.sessionId}>
+                      {cycle.sessionId} · {cycle.status} · pnl ${cycle.realizedPnlUsd.toFixed(2)} · return{" "}
+                      {cycle.paperReturnPct.toFixed(2)}% · exits {cycle.exitCount}
+                      {cycle.completedAt ? ` · ${cycle.completedAt}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {strategy.paperSession ? (
               <div className="validation-report">
                 <strong>{strategy.market === "crypto" ? "Kraken paper session" : "Simulation session"}</strong>

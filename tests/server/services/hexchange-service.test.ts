@@ -385,6 +385,24 @@ describe("hexchange service persistence", () => {
         winRatePct: 100,
       }),
     );
+    expect(updatedStrategy?.paperCycleHistory).toHaveLength(2);
+    expect(updatedStrategy?.paperCycleHistory[0]).toEqual(
+      expect.objectContaining({
+        sessionId: expect.stringMatching(/^paper-crypto-breakout-/),
+        status: "completed",
+        venue: "kraken",
+        executionMode: "paper",
+        runtimeSource: "nautilus_trader",
+        exitCount: 2,
+      }),
+    );
+    expect(updatedStrategy?.paperCycleHistory[1]).toEqual(
+      expect.objectContaining({
+        sessionId: expect.stringMatching(/^paper-crypto-breakout-/),
+        status: "completed",
+        venue: "kraken",
+      }),
+    );
   }, 20_000);
 
   it("automatically restarts crypto paper validation when automation is enabled", async () => {

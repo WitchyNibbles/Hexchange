@@ -122,6 +122,7 @@ export class HexchangeService {
       const paperValidationStats = this.buildPaperValidationStats(strategy.id);
       const validation = buildValidationReport(strategy, paperValidationStats);
       const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
+      const paperCycleHistory = this.buildPaperCycleHistory(strategy.id);
 
       return {
         id: strategy.id,
@@ -150,6 +151,7 @@ export class HexchangeService {
         validationReport: validation.reasons,
         paperValidationStats,
         lastPaperCycle,
+        paperCycleHistory,
         lastBacktest: this.backtests.find((item) => item.strategyId === strategy.id) ?? null,
       };
     });
@@ -745,64 +747,24 @@ export class HexchangeService {
   }
 
   private buildLastPaperCycleSummary(strategyId: string): StrategySummary["lastPaperCycle"] {
-    const strategyTrades = this.trades
-      .filter((trade) => trade.strategyId === strategyId)
-      .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
-    if (strategyTrades.length === 0) {
+    const latestCycle = this.buildPaperCycleHistory(strategyId).at(0);
+    if (!latestCycle) {
       return null;
     }
 
-    const latestSessionId = strategyTrades.at(-1)?.sessionId ?? null;
-    const cycleTrades = latestSessionId
-      ? strategyTrades.filter((trade) => trade.sessionId === latestSessionId)
-      : strategyTrades;
-    const entryTrade = cycleTrades.find((trade) => trade.side === "buy") ?? null;
-    const exitTrades = cycleTrades.filter((trade) => trade.side === "sell");
-    const entryNotionalUsd = entryTrade ? Number((entryTrade.price * entryTrade.quantity).toFixed(2)) : 0;
-    const realizedPnlUsd = Number(exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0).toFixed(2));
-    const paperReturnPct = entryNotionalUsd > 0 ? Number(((realizedPnlUsd / entryNotionalUsd) * 100).toFixed(2)) : 0;
-    const latestTrade = cycleTrades.at(-1) ?? null;
-
     return {
-      status: exitTrades.length > 0 ? "completed" : "running",
-      realizedPnlUsd,
-      entryNotionalUsd,
-      paperReturnPct,
-      exitCount: exitTrades.length,
-      completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
+      status: latestCycle.status,
+      realizedPnlUsd: latestCycle.realizedPnlUsd,
+      entryNotionalUsd: latestCycle.entryNotionalUsd,
+      paperReturnPct: latestCycle.paperReturnPct,
+      exitCount: latestCycle.exitCount,
+      completedAt: latestCycle.completedAt,
     };
   }
 
   private buildPaperValidationStats(strategyId: string): StrategySummary["paperValidationStats"] {
-    const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
-    const cycles = new Map<string, TradeLogEntry[]>();
-
-    for (const trade of strategyTrades) {
-      const cycleId = trade.sessionId ?? `${trade.strategyId}-legacy`;
-      const cycleTrades = cycles.get(cycleId) ?? [];
-      cycleTrades.push(trade);
-      cycles.set(cycleId, cycleTrades);
-    }
-
-    const cycleSummaries = [...cycles.values()]
-      .map((cycleTrades) => {
-        const orderedTrades = cycleTrades.sort(
-          (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
-        );
-        const entryTrade = orderedTrades.find((trade) => trade.side === "buy") ?? null;
-        const exitTrades = orderedTrades.filter((trade) => trade.side === "sell");
-        const entryNotionalUsd = entryTrade ? entryTrade.price * entryTrade.quantity : 0;
-        const realizedPnlUsd = exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0);
-        const returnPct = entryNotionalUsd > 0 ? (realizedPnlUsd / entryNotionalUsd) * 100 : 0;
-
-        return {
-          completed: exitTrades.length > 0,
-          realizedPnlUsd,
-          returnPct,
-        };
-      });
-
-    const completedCycles = cycleSummaries.filter((cycle) => cycle.completed);
+    const cycleSummaries = this.buildPaperCycleHistory(strategyId);
+    const completedCycles = cycleSummaries.filter((cycle) => cycle.status === "completed");
     const cumulativeRealizedPnlUsd = Number(
       completedCycles.reduce((sum, cycle) => sum + cycle.realizedPnlUsd, 0).toFixed(2),
     );
@@ -810,7 +772,7 @@ export class HexchangeService {
       completedCycles.length > 0
         ? Number(
             (
-              completedCycles.reduce((sum, cycle) => sum + cycle.returnPct, 0) /
+              completedCycles.reduce((sum, cycle) => sum + cycle.paperReturnPct, 0) /
               completedCycles.length
             ).toFixed(2),
           )
@@ -832,6 +794,52 @@ export class HexchangeService {
       averageReturnPct,
       winRatePct,
     };
+  }
+
+  private buildPaperCycleHistory(strategyId: string): StrategySummary["paperCycleHistory"] {
+    const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
+    const cycles = new Map<string, TradeLogEntry[]>();
+
+    for (const trade of strategyTrades) {
+      const cycleId = trade.sessionId ?? `${trade.strategyId}-legacy`;
+      const cycleTrades = cycles.get(cycleId) ?? [];
+      cycleTrades.push(trade);
+      cycles.set(cycleId, cycleTrades);
+    }
+
+    return [...cycles.entries()]
+      .map(([cycleId, cycleTrades]) => {
+        const orderedTrades = [...cycleTrades].sort(
+          (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+        );
+        const entryTrade = orderedTrades.find((trade) => trade.side === "buy") ?? null;
+        const exitTrades = orderedTrades.filter((trade) => trade.side === "sell");
+        const firstTrade = orderedTrades.at(0) ?? null;
+        const latestTrade = orderedTrades.at(-1) ?? null;
+        const entryNotionalUsd = entryTrade ? Number((entryTrade.price * entryTrade.quantity).toFixed(2)) : 0;
+        const realizedPnlUsd = Number(exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0).toFixed(2));
+        const paperReturnPct =
+          entryNotionalUsd > 0 ? Number(((realizedPnlUsd / entryNotionalUsd) * 100).toFixed(2)) : 0;
+
+        return {
+          sessionId: cycleId,
+          status: (exitTrades.length > 0 ? "completed" : "running") as "completed" | "running",
+          venue: entryTrade?.venue ?? latestTrade?.venue ?? null,
+          executionMode: entryTrade?.executionMode ?? latestTrade?.executionMode ?? null,
+          runtimeSource: entryTrade?.runtimeSource ?? latestTrade?.runtimeSource ?? null,
+          realizedPnlUsd,
+          entryNotionalUsd,
+          paperReturnPct,
+          exitCount: exitTrades.length,
+          startedAt: firstTrade?.createdAt ?? null,
+          completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
+        };
+      })
+      .sort((left, right) => {
+        const rightTime = new Date(right.completedAt ?? right.startedAt ?? 0).getTime();
+        const leftTime = new Date(left.completedAt ?? left.startedAt ?? 0).getTime();
+        return rightTime - leftTime;
+      });
   }
 
   private mergeTradeHistory(existingTrades: TradeLogEntry[], incomingTrades: TradeLogEntry[]): TradeLogEntry[] {

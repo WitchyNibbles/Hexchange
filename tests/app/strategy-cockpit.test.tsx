@@ -52,6 +52,34 @@ describe("strategy cockpit", () => {
             exitCount: 2,
             completedAt: "2026-05-24T08:40:00.000Z",
           },
+          paperCycleHistory: [
+            {
+              sessionId: "paper-stock-momentum-2",
+              status: "completed",
+              venue: "simulation",
+              executionMode: "simulation",
+              runtimeSource: "hexchange_local",
+              realizedPnlUsd: 8.66,
+              entryNotionalUsd: 1358.45,
+              paperReturnPct: 0.64,
+              exitCount: 2,
+              startedAt: "2026-05-24T08:32:00.000Z",
+              completedAt: "2026-05-24T08:40:00.000Z",
+            },
+            {
+              sessionId: "paper-stock-momentum-1",
+              status: "completed",
+              venue: "simulation",
+              executionMode: "simulation",
+              runtimeSource: "hexchange_local",
+              realizedPnlUsd: 7.91,
+              entryNotionalUsd: 1320.15,
+              paperReturnPct: 0.6,
+              exitCount: 2,
+              startedAt: "2026-05-24T07:52:00.000Z",
+              completedAt: "2026-05-24T08:01:00.000Z",
+            },
+          ],
           paperValidationStats: {
             cycles: 4,
             completedCycles: 3,
@@ -126,11 +154,13 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/via nautilus_trader/i)).toBeInTheDocument();
     expect(screen.getByText(/execution policy/i)).toBeInTheDocument();
     expect(screen.getByText(/simulation only: stock execution is disabled until a real stock broker is added/i)).toBeInTheDocument();
-    expect(screen.getByText(/paper-stock-momentum/i)).toBeInTheDocument();
+    expect(screen.getByText(/^paper-stock-momentum · pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
     expect(screen.getByText(/last paper cycle/i)).toBeInTheDocument();
-    expect(screen.getByText(/completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/^completed · pnl \$8.66 · return 0.64% · exits 2 · 2026-05-24T08:40:00.000Z$/i)).toBeInTheDocument();
+    expect(screen.getByText(/paper cycle ledger/i)).toBeInTheDocument();
+    expect(screen.getByText(/paper-stock-momentum-2 · completed · pnl \$8.66 · return 0.64% · exits 2/i)).toBeInTheDocument();
     expect(screen.getByText(/paper record/i)).toBeInTheDocument();
     expect(screen.getByText(/cycles 4 · completed 3 · win rate 66.67% · avg return 0.58% · pnl \$26.41/i)).toBeInTheDocument();
     expect(screen.getByText(/stock strategies stay manual because they are simulation-only/i)).toBeInTheDocument();
