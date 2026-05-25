@@ -20,6 +20,8 @@ import { buildOrderNarrative, buildSignalNarrative } from "../audit/explanation-
 import { AlpacaPaperBroker } from "../brokers/alpaca/alpaca-paper-broker";
 import { createEngineAdapter } from "../engine/engine-adapter";
 import type { BacktestResult, PaperSession } from "../engine/types";
+import type { KrakenTicker } from "../market/kraken-public-market-data";
+import { KrakenPublicMarketData } from "../market/kraken-public-market-data";
 import { MarketDataService } from "../market/market-data-service";
 import { LiveTradingController } from "../live/live-trading-controller";
 import { buildLiveReadinessReport } from "../live/live-readiness-report";
@@ -51,6 +53,7 @@ export class HexchangeService {
   private readonly broker = AlpacaPaperBroker.fromEnv();
   private readonly eventStore: EventStore;
   private readonly runtimeStateStore: RuntimeStateStore;
+  private readonly krakenTicker: KrakenTicker;
   private strategies: StrategyState[] = buildReferenceStrategies(this.marketDataService);
   private orders: NormalizedOrder[] = [];
   private positions: PositionSnapshot[] = [];
@@ -58,9 +61,15 @@ export class HexchangeService {
   private backtests: BacktestResult[] = [];
   private managedSessions = new Map<string, PaperSession>();
 
-  constructor(appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange") {
+  constructor(
+    appDir = process.env.HEXCHANGE_APP_DIR ?? ".hexchange",
+    options: {
+      krakenTicker?: KrakenTicker;
+    } = {},
+  ) {
     this.eventStore = new EventStore(path.join(appDir, "events.json"));
     this.runtimeStateStore = new RuntimeStateStore(path.join(appDir, "state.json"));
+    this.krakenTicker = options.krakenTicker ?? new KrakenPublicMarketData();
   }
 
   async initialize(): Promise<void> {
@@ -194,7 +203,11 @@ export class HexchangeService {
       }
 
       if (positions.length > 0) {
-        this.positions = [...positions, ...this.positions.filter((item) => item.symbol !== strategy.symbol)];
+        const hydratedPositions =
+          strategy.market === "crypto"
+            ? await this.overlayKrakenPublicPrice(positions)
+            : positions;
+        this.positions = [...hydratedPositions, ...this.positions.filter((item) => item.symbol !== strategy.symbol)];
         stateChanged = true;
       }
 
@@ -591,6 +604,23 @@ export class HexchangeService {
     }>;
 
     syncableAdapter.seedBacktests?.(this.backtests);
+  }
+
+  private async overlayKrakenPublicPrice(positions: PositionSnapshot[]): Promise<PositionSnapshot[]> {
+    return Promise.all(
+      positions.map(async (position) => {
+        const livePrice = await this.krakenTicker.getLatestPrice(position.symbol);
+        if (typeof livePrice !== "number") {
+          return position;
+        }
+
+        return {
+          ...position,
+          markPrice: livePrice,
+          unrealizedPnlUsd: Number(((livePrice - position.averageEntryPrice) * position.quantity).toFixed(2)),
+        };
+      }),
+    );
   }
 }
 

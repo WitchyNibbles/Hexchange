@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createHexchangeService } from "../../../src/server/services/hexchange-service";
+import { createHexchangeService, HexchangeService } from "../../../src/server/services/hexchange-service";
 
 const tempDirs: string[] = [];
 
@@ -141,6 +141,38 @@ describe("hexchange service persistence", () => {
           symbol: "BTCUSD",
           quantity: 0.021,
           explanation: "Kraken runtime telemetry executed the active crypto validation leg.",
+        }),
+      ]),
+    );
+  }, 15_000);
+
+  it("overlays live Kraken public prices onto crypto runtime telemetry", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = new HexchangeService(appDir, {
+      krakenTicker: {
+        getLatestPrice: async () => 77512,
+      },
+    });
+    await service.initialize();
+
+    await service.startPaperSession("crypto-breakout");
+    await service.refreshRuntimeTelemetry();
+
+    const portfolio = service.getPortfolioSnapshot();
+
+    expect(portfolio.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "BTCUSD",
+          markPrice: 77512,
         }),
       ]),
     );
