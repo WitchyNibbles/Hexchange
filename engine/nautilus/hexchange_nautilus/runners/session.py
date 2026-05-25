@@ -145,12 +145,14 @@ def runtime_status(runs_dir: str) -> str:
 def session_worker(strategy_id: str, runs_dir: str) -> None:
     runs_path = Path(runs_dir)
     artifact_path = _session_artifact_path(strategy_id, runs_path)
+    state_path = _session_state_artifact_path(strategy_id, runs_path)
     started_at = datetime.now(timezone.utc).isoformat()
     process_id = os.getpid()
     runtime_source = _runtime_source()
     venue_statuses = _build_venue_statuses(runs_path)
     execution_mode = _execution_mode(venue_statuses)
     running = True
+    state = _load_or_initialize_session_state(strategy_id, runs_path, started_at)
 
     def handle_stop(_signum: int, _frame: object) -> None:
         nonlocal running
@@ -161,6 +163,8 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
 
     while running:
         now = datetime.now(timezone.utc).isoformat()
+        state = _advance_session_state(strategy_id, state, runs_path, now)
+        write_json_artifact(state_path, state)
         write_json_artifact(
             artifact_path,
             {
@@ -179,12 +183,14 @@ def session_worker(strategy_id: str, runs_dir: str) -> None:
         write_json_artifact(
             telemetry_path,
             _build_session_telemetry(
-                strategy_id=strategy_id,
+                state=state,
                 session_id=f"paper-{strategy_id}",
-                started_at=started_at,
                 updated_at=now,
             ),
         )
+        if str(state.get("phase")) == "closed":
+            running = False
+            continue
         time.sleep(HEARTBEAT_INTERVAL_SECONDS)
 
     write_json_artifact(
@@ -210,6 +216,10 @@ def _session_artifact_path(strategy_id: str, runs_path: Path) -> Path:
 
 def _session_telemetry_artifact_path(strategy_id: str, runs_path: Path) -> Path:
     return runs_path / f"session-{strategy_id}-telemetry.json"
+
+
+def _session_state_artifact_path(strategy_id: str, runs_path: Path) -> Path:
+    return runs_path / f"session-{strategy_id}-state.json"
 
 
 def _wait_for_session_bootstrap(artifact_path: Path, process_id: int) -> None:
@@ -430,63 +440,254 @@ def _execution_mode(venue_statuses: list[dict[str, Any]]) -> str:
 
 def _build_session_telemetry(
     *,
-    strategy_id: str,
+    state: dict[str, Any],
     session_id: str,
-    started_at: str,
     updated_at: str,
 ) -> dict[str, Any]:
-    seed = _session_telemetry_seed(strategy_id)
-    mark_price = seed["markPrice"]
-    average_entry_price = seed["averageEntryPrice"]
-    quantity = seed["quantity"]
+    mark_price = float(state["currentPrice"])
+    average_entry_price = float(state["entryPrice"])
+    quantity = float(state["remainingQuantity"])
+    realized_pnl = float(state["realizedPnlUsd"])
     unrealized_pnl = round((mark_price - average_entry_price) * quantity, 2)
 
     return {
         "sessionId": session_id,
-        "strategyId": strategy_id,
+        "strategyId": state["strategyId"],
         "updatedAt": updated_at,
-        "orders": [
+        "orders": state["orders"],
+        "positions": []
+        if quantity <= 0
+        else [
             {
-                "id": f"runtime-order-{strategy_id}",
-                "strategyId": strategy_id,
-                "symbol": seed["symbol"],
-                "market": seed["market"],
-                "side": seed["side"],
-                "quantity": quantity,
-                "submittedAt": started_at,
-                "rationale": seed["explanation"],
-                "status": "filled",
-                "averageFillPrice": average_entry_price,
-            }
-        ],
-        "positions": [
-            {
-                "symbol": seed["symbol"],
-                "market": seed["market"],
+                "symbol": state["symbol"],
+                "market": state["market"],
                 "quantity": quantity,
                 "averageEntryPrice": average_entry_price,
                 "markPrice": mark_price,
                 "unrealizedPnlUsd": unrealized_pnl,
-                "realizedPnlUsd": seed["realizedPnlUsd"],
+                "realizedPnlUsd": realized_pnl,
+            }
+        ],
+        "trades": state["trades"],
+    }
+
+
+def _load_or_initialize_session_state(strategy_id: str, runs_path: Path, started_at: str) -> dict[str, Any]:
+    existing = _read_json(_session_state_artifact_path(strategy_id, runs_path))
+    if existing:
+        return existing
+
+    seed = _session_telemetry_seed(strategy_id)
+    entry_price = _read_market_price(strategy_id, runs_path, 0, float(seed["markPrice"]))
+    quantity = float(seed["quantity"])
+    entry_fee = round(entry_price * quantity * 0.001, 2)
+
+    return {
+        "strategyId": strategy_id,
+        "symbol": seed["symbol"],
+        "market": seed["market"],
+        "phase": "open",
+        "tick": 0,
+        "startedAt": started_at,
+        "entryPrice": entry_price,
+        "currentPrice": entry_price,
+        "initialQuantity": quantity,
+        "remainingQuantity": quantity,
+        "realizedPnlUsd": 0.0,
+        "expectedEdgeBps": seed["expectedEdgeBps"],
+        "entryExplanation": seed["explanation"],
+        "orders": [
+            {
+                "id": f"runtime-order-entry-{strategy_id}",
+                "strategyId": strategy_id,
+                "symbol": seed["symbol"],
+                "market": seed["market"],
+                "side": "buy",
+                "quantity": quantity,
+                "submittedAt": started_at,
+                "rationale": seed["explanation"],
+                "status": "filled",
+                "averageFillPrice": entry_price,
             }
         ],
         "trades": [
             {
-                "id": f"runtime-trade-{strategy_id}",
+                "id": f"runtime-trade-entry-{strategy_id}",
                 "strategyId": strategy_id,
                 "symbol": seed["symbol"],
                 "market": seed["market"],
-                "side": seed["side"],
+                "side": "buy",
                 "quantity": quantity,
-                "price": average_entry_price,
-                "feeUsd": seed["feeUsd"],
-                "realizedPnlUsd": seed["realizedPnlUsd"],
+                "price": entry_price,
+                "feeUsd": entry_fee,
+                "realizedPnlUsd": 0.0,
                 "expectedEdgeBps": seed["expectedEdgeBps"],
                 "explanation": seed["explanation"],
                 "createdAt": started_at,
             }
         ],
     }
+
+
+def _advance_session_state(
+    strategy_id: str,
+    state: dict[str, Any],
+    runs_path: Path,
+    updated_at: str,
+) -> dict[str, Any]:
+    next_state = dict(state)
+    tick = int(next_state.get("tick", 0))
+    if tick == 0:
+        current_price = float(next_state["currentPrice"])
+    else:
+        current_price = _read_market_price(strategy_id, runs_path, tick, float(next_state["currentPrice"]))
+
+    next_state["currentPrice"] = current_price
+    next_state["tick"] = tick + 1
+
+    if strategy_id != "crypto-breakout":
+        return next_state
+
+    entry_price = float(next_state["entryPrice"])
+    remaining_quantity = float(next_state["remainingQuantity"])
+    phase = str(next_state.get("phase", "open"))
+
+    if phase == "open" and remaining_quantity > 0 and current_price >= entry_price * 1.004:
+        partial_quantity = round(float(next_state["initialQuantity"]) / 2, 6)
+        _append_exit_fill(next_state, partial_quantity, current_price, updated_at, "Scaled half the Kraken paper leg.")
+        phase = "scaled"
+
+    remaining_quantity = float(next_state["remainingQuantity"])
+    if phase in {"open", "scaled"} and remaining_quantity > 0 and (
+        current_price <= entry_price * 0.995
+        or current_price >= entry_price * 1.008
+        or int(next_state["tick"]) >= 3
+    ):
+        _append_exit_fill(next_state, remaining_quantity, current_price, updated_at, "Closed the Kraken paper leg.")
+        phase = "closed"
+
+    next_state["phase"] = phase
+    return next_state
+
+
+def _append_exit_fill(
+    state: dict[str, Any],
+    quantity: float,
+    price: float,
+    created_at: str,
+    explanation: str,
+) -> None:
+    if quantity <= 0:
+        return
+
+    remaining_quantity = round(max(float(state["remainingQuantity"]) - quantity, 0.0), 6)
+    entry_price = float(state["entryPrice"])
+    realized_pnl = round((price - entry_price) * quantity, 2)
+    fee_usd = round(price * quantity * 0.001, 2)
+    fill_index = len(state["trades"]) + 1
+
+    state["remainingQuantity"] = remaining_quantity
+    state["realizedPnlUsd"] = round(float(state["realizedPnlUsd"]) + realized_pnl, 2)
+    state["orders"] = list(state["orders"]) + [
+        {
+            "id": f"runtime-order-exit-{state['strategyId']}-{fill_index}",
+            "strategyId": state["strategyId"],
+            "symbol": state["symbol"],
+            "market": state["market"],
+            "side": "sell",
+            "quantity": quantity,
+            "submittedAt": created_at,
+            "rationale": explanation,
+            "status": "filled",
+            "averageFillPrice": price,
+        }
+    ]
+    state["trades"] = list(state["trades"]) + [
+        {
+            "id": f"runtime-trade-exit-{state['strategyId']}-{fill_index}",
+            "strategyId": state["strategyId"],
+            "symbol": state["symbol"],
+            "market": state["market"],
+            "side": "sell",
+            "quantity": quantity,
+            "price": price,
+            "feeUsd": fee_usd,
+            "realizedPnlUsd": realized_pnl,
+            "expectedEdgeBps": state["expectedEdgeBps"],
+            "explanation": explanation,
+            "createdAt": created_at,
+        }
+    ]
+
+
+def _read_market_price(strategy_id: str, runs_path: Path, tick: int, fallback_price: float) -> float:
+    if strategy_id == "crypto-breakout":
+        series = _read_test_price_series()
+        if series:
+            return series[min(tick, len(series) - 1)]
+        live_price = _read_cached_kraken_public_price(runs_path)
+        if live_price is not None:
+            return live_price
+    elif strategy_id == "stock-momentum":
+        return round(fallback_price + min(tick, 4) * 0.35, 2)
+
+    return fallback_price
+
+
+def _read_test_price_series() -> list[float]:
+    raw = os.getenv("HEXCHANGE_KRAKEN_TEST_PRICE_SERIES")
+    if not raw:
+        return []
+    values: list[float] = []
+    for item in raw.split(","):
+        try:
+            parsed = float(item.strip())
+        except ValueError:
+            continue
+        if parsed > 0:
+            values.append(parsed)
+    return values
+
+
+def _read_cached_kraken_public_price(runs_path: Path) -> float | None:
+    cache_path = runs_path / "kraken-public-price.json"
+    cached = _read_json(cache_path)
+    if cached:
+        checked_at = cached.get("checkedAt")
+        price = cached.get("price")
+        if (
+            isinstance(price, (float, int))
+            and isinstance(checked_at, str)
+            and not _heartbeat_stale_for_ttl(checked_at, 2)
+        ):
+            return float(price)
+
+    request = urllib.request.Request(
+        "https://api.kraken.com/0/public/Ticker?pair=BTCUSD",
+        method="GET",
+        headers={
+            "User-Agent": "Hexchange paper ticker",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            raw = response.read().decode()
+        parsed = json.loads(raw)
+        ticker = parsed.get("result")
+        first = list(ticker.values())[0] if isinstance(ticker, dict) and ticker else None
+        price = float(first.get("c", [None])[0]) if isinstance(first, dict) else None
+        if price and price > 0:
+            write_json_artifact(
+                cache_path,
+                {
+                    "checkedAt": datetime.now(timezone.utc).isoformat(),
+                    "price": price,
+                },
+            )
+            return price
+    except Exception:
+        return None
+    return None
 
 
 def _session_telemetry_seed(strategy_id: str) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,7 +12,36 @@ async function createTempDir(): Promise<string> {
   return dir;
 }
 
+async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
+  let entries: string[] = [];
+  try {
+    entries = await readdir(rootDir);
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.startsWith("session-") && entry.endsWith(".json"))
+      .map(async (entry) => {
+        try {
+          const parsed = JSON.parse(await readFile(path.join(rootDir, entry), "utf8")) as { processId?: number };
+          if (typeof parsed.processId === "number" && parsed.processId > 0) {
+            try {
+              process.kill(parsed.processId, "SIGKILL");
+            } catch {
+              // Worker already exited.
+            }
+          }
+        } catch {
+          // Ignore malformed artifacts during teardown.
+        }
+      }),
+  );
+}
+
 afterEach(async () => {
+  await Promise.all(tempDirs.map((dir) => terminateRuntimeWorkers(dir)));
   await Promise.all(
     tempDirs.splice(0).map(async (dir) => {
       await rm(dir, { recursive: true, force: true });
@@ -22,6 +51,7 @@ afterEach(async () => {
   delete process.env.HEXCHANGE_NAUTILUS_PYTHON;
   delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
   delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
+  delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
 });
 
 describe("hexchange service persistence", () => {
@@ -144,6 +174,8 @@ describe("hexchange service persistence", () => {
         }),
       ]),
     );
+
+    await service.stopPaperSession("crypto-breakout");
   }, 15_000);
 
   it("overlays live Kraken public prices onto crypto runtime telemetry", async () => {
@@ -176,7 +208,45 @@ describe("hexchange service persistence", () => {
         }),
       ]),
     );
+
+    await service.stopPaperSession("crypto-breakout");
   }, 15_000);
+
+  it("advances crypto paper telemetry through partial and final exits", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await new Promise((resolve) => setTimeout(resolve, 1400));
+    await service.refreshRuntimeTelemetry();
+
+    const portfolio = service.getPortfolioSnapshot();
+    const trades = service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout");
+
+    expect(portfolio.positions).toEqual([]);
+    expect(trades).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ side: "buy", quantity: 0.021 }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+      ]),
+    );
+    expect(trades.some((trade) => trade.realizedPnlUsd > 0)).toBe(true);
+    expect(service.getManagedSession("crypto-breakout")).toBeNull();
+    const completedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
+    expect(completedStrategy?.paperSessionActive).toBe(false);
+    expect(completedStrategy?.validation.paperDriftPct).toBeGreaterThan(3.4);
+    expect(service.getSystemStatus().mode).toBe("research");
+  }, 20_000);
 
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {
     const appDir = await createTempDir();

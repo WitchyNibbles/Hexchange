@@ -21,6 +21,7 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }),
   );
+  delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
 });
 
 describe("process runner", () => {
@@ -141,4 +142,52 @@ describe("process runner", () => {
     expect(stoppedSession.state).toBe("stopped");
     expect(stoppedSession.stoppedAt).toBeTruthy();
   }, 15_000);
+
+  it("emits evolving crypto telemetry with deterministic price steps", async () => {
+    const runsDir = await createTempDir();
+    const runner = createProcessRunner();
+    const projectDir = path.resolve(process.cwd(), "engine", "nautilus");
+    const pythonPath = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const start = await runner({
+      command: "start-session",
+      payload: {
+        pythonPath,
+        projectDir,
+        runsDir,
+        strategyId: "crypto-breakout",
+      },
+    });
+
+    expect(start.ok).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 1900));
+
+    const telemetryPath = path.join(runsDir, "session-crypto-breakout-telemetry.json");
+    const telemetry = JSON.parse(readFileSync(telemetryPath, "utf8")) as {
+      positions: Array<{ quantity: number }>;
+      trades: Array<{ side: string; quantity: number; realizedPnlUsd: number }>;
+    };
+
+    expect(telemetry.positions).toEqual([]);
+    expect(telemetry.trades).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ side: "buy", quantity: 0.021 }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+        expect.objectContaining({ side: "sell", quantity: 0.0105 }),
+      ]),
+    );
+    expect(telemetry.trades.some((trade) => trade.realizedPnlUsd > 0)).toBe(true);
+
+    await runner({
+      command: "stop-session",
+      payload: {
+        pythonPath,
+        projectDir,
+        runsDir,
+        strategyId: "crypto-breakout",
+      },
+    });
+  }, 20_000);
 });

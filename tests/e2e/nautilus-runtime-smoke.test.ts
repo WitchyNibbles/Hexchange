@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import request from "supertest";
@@ -15,13 +15,43 @@ async function createTempDir(prefix: string): Promise<string> {
   return dir;
 }
 
+async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
+  let entries: string[] = [];
+  try {
+    entries = await readdir(rootDir);
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.startsWith("session-") && entry.endsWith(".json"))
+      .map(async (entry) => {
+        try {
+          const parsed = JSON.parse(await readFile(path.join(rootDir, entry), "utf8")) as { processId?: number };
+          if (typeof parsed.processId === "number" && parsed.processId > 0) {
+            try {
+              process.kill(parsed.processId, "SIGKILL");
+            } catch {
+              // Worker already exited.
+            }
+          }
+        } catch {
+          // Ignore malformed artifacts during teardown.
+        }
+      }),
+  );
+}
+
 afterEach(async () => {
+  await Promise.all(tempDirs.map((dir) => terminateRuntimeWorkers(dir)));
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
   delete process.env.HEXCHANGE_ENGINE_MODE;
   delete process.env.HEXCHANGE_NAUTILUS_PYTHON;
   delete process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR;
   delete process.env.HEXCHANGE_NAUTILUS_RUNS_DIR;
   delete process.env.HEXCHANGE_APP_DIR;
+  delete process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES;
 });
 
 describe("nautilus runtime smoke", () => {

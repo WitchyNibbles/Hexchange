@@ -200,9 +200,12 @@ export class HexchangeService {
       if (orders.length > 0) {
         this.orders = [...orders, ...this.orders.filter((item) => item.strategyId !== strategyId)];
         stateChanged = true;
+      } else if (trades.length > 0) {
+        this.orders = this.orders.filter((item) => item.strategyId !== strategyId);
+        stateChanged = true;
       }
 
-      if (positions.length > 0) {
+      if (positions.length > 0 || trades.length > 0) {
         const hydratedPositions =
           strategy.market === "crypto"
             ? await this.overlayKrakenPublicPrice(positions)
@@ -214,6 +217,23 @@ export class HexchangeService {
       if (trades.length > 0) {
         this.trades = [...trades, ...this.trades.filter((item) => item.strategyId !== strategyId)];
         this.syncEnginePortfolioState(strategyId);
+        stateChanged = true;
+      }
+
+      if (strategy.market === "crypto" && trades.length > 0 && positions.length === 0) {
+        this.managedSessions.delete(strategyId);
+        const updatedValidation = this.updateValidationFromPaperCycle(strategy, trades);
+        this.updateStrategy({
+          ...this.findStrategy(strategyId),
+          validation: updatedValidation,
+          paperSessionActive: false,
+        });
+        await this.recordEvent({
+          kind: "paper_session",
+          title: `${strategy.name} paper cycle completed`,
+          body: `Paper validation on ${strategy.symbol} completed. Updated paper drift to ${updatedValidation.paperDriftPct.toFixed(2)}%.`,
+          severity: "info",
+        });
         stateChanged = true;
       }
     }
@@ -604,6 +624,28 @@ export class HexchangeService {
     }>;
 
     syncableAdapter.seedBacktests?.(this.backtests);
+  }
+
+  private updateValidationFromPaperCycle(
+    strategy: StrategyState,
+    trades: TradeLogEntry[],
+  ): StrategyState["validation"] {
+    const latestBacktest =
+      this.backtests.find((backtest) => backtest.strategyId === strategy.id) ?? null;
+    const entryTrade = trades.find((trade) => trade.side === "buy") ?? null;
+    const exitTrades = trades.filter((trade) => trade.side === "sell");
+    const entryNotional = entryTrade ? entryTrade.price * entryTrade.quantity : 0;
+    const realizedPnlUsd = exitTrades.reduce((sum, trade) => sum + trade.realizedPnlUsd, 0);
+    const paperReturnPct = entryNotional > 0 ? (realizedPnlUsd / entryNotional) * 100 : 0;
+    const backtestReturnPct = latestBacktest?.feeAdjustedReturnPct ?? strategy.validation.feeAdjustedReturnPct;
+    const observedDriftPct = Math.abs(backtestReturnPct - paperReturnPct);
+    const blendedDriftPct = Number(((strategy.validation.paperDriftPct * 0.75) + (observedDriftPct * 0.25)).toFixed(2));
+
+    return {
+      ...strategy.validation,
+      sampleSize: strategy.validation.sampleSize + 1,
+      paperDriftPct: blendedDriftPct,
+    };
   }
 
   private async overlayKrakenPublicPrice(positions: PositionSnapshot[]): Promise<PositionSnapshot[]> {
