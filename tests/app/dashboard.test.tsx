@@ -96,6 +96,7 @@ describe("dashboard route", () => {
       "/api/control/validation-campaign": {
         status: "collecting",
         summary: "Kraken paper validation is actively collecting forward evidence.",
+        nextAction: "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.",
         observedHoursTarget: 24,
         completedCyclesTarget: 10,
         observedHours: 0.1,
@@ -153,6 +154,7 @@ describe("dashboard route", () => {
     expect(screen.getByText(/1 crypto strategies currently satisfy the live evidence gate · 0 evidence checks still unresolved/i)).toBeInTheDocument();
     expect(screen.getByText(/validation campaign target/i)).toBeInTheDocument();
     expect(screen.getByText(/collecting · kraken paper validation is actively collecting forward evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/next action: keep kraken paper validation running until the observed-hour and completed-cycle targets are met/i)).toBeInTheDocument();
     expect(screen.getByText(/0.1\/24 observed hours · 3\/10 completed cycles/i)).toBeInTheDocument();
     expect(screen.getByText(/keep kraken paper validation running until both the observed-hour and completed-cycle targets are met/i)).toBeInTheDocument();
   });

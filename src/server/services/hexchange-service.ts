@@ -419,10 +419,19 @@ export class HexchangeService {
           : status === "stalled"
             ? "Kraken paper validation looks stale. Restart or inspect the paper runtime."
             : "Kraken paper validation is actively collecting forward evidence.";
+    const nextAction =
+      status === "ready"
+        ? "Review the Kraken paper evidence and decide whether to arm live trading."
+        : status === "idle"
+          ? "Start a Kraken paper session to begin collecting forward evidence."
+          : status === "stalled"
+            ? "Inspect the paper runtime and restart Kraken paper validation."
+            : "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.";
 
     return {
       status,
       summary,
+      nextAction,
       observedHoursTarget: this.validationCampaignTargets.observedHours,
       completedCyclesTarget: this.validationCampaignTargets.completedCycles,
       observedHours,
@@ -643,14 +652,19 @@ export class HexchangeService {
   }
 
   async stopManagedSession(sessionId: string): Promise<void> {
-    await this.engineAdapter.stopSession(sessionId);
-
     const entry = [...this.managedSessions.entries()].find(([, session]) => session.sessionId === sessionId);
     if (!entry) {
       return;
     }
 
     const [strategyId] = entry;
+    try {
+      await this.engineAdapter.stopSession(sessionId);
+    } catch {
+      // The runtime session may have already exited between telemetry refreshes and a stop request.
+      // We still detach the local session so operator controls remain reliable.
+    }
+
     this.managedSessions.delete(strategyId);
     const strategy = this.findStrategy(strategyId);
     this.updateStrategy({

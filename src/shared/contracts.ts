@@ -151,6 +151,7 @@ export interface LiveReadinessReport {
 export interface ValidationCampaignSummary {
   status: "idle" | "collecting" | "stalled" | "ready";
   summary: string;
+  nextAction: string;
   observedHoursTarget: number;
   completedCyclesTarget: number;
   observedHours: number;

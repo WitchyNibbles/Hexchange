@@ -502,6 +502,7 @@ describe("hexchange service persistence", () => {
       expect.objectContaining({
         status: "ready",
         summary: "Forward validation target reached.",
+        nextAction: "Review the Kraken paper evidence and decide whether to arm live trading.",
         observedHoursTarget: 0,
         completedCyclesTarget: 1,
         campaignReady: true,
@@ -567,6 +568,7 @@ describe("hexchange service persistence", () => {
       expect.objectContaining({
         status: "stalled",
         summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
+        nextAction: "Inspect the paper runtime and restart Kraken paper validation.",
         campaignReady: false,
       }),
     );
@@ -612,6 +614,9 @@ describe("hexchange service persistence", () => {
     events = await service.listEvents();
 
     expect(collectingCampaign.status).toBe("collecting");
+    expect(collectingCampaign.nextAction).toBe(
+      "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.",
+    );
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

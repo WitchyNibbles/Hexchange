@@ -76,6 +76,7 @@ describe("trades control center", () => {
       "/api/control/validation-campaign": {
         status: "collecting",
         summary: "Kraken paper validation is actively collecting forward evidence.",
+        nextAction: "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.",
         observedHoursTarget: 24,
         completedCyclesTarget: 10,
         observedHours: 6.5,
@@ -140,6 +141,7 @@ describe("trades control center", () => {
     expect(screen.getByText(/live readiness ritual/i)).toBeInTheDocument();
     expect(screen.getByText(/validation campaign/i)).toBeInTheDocument();
     expect(screen.getByText(/collecting · kraken paper validation is actively collecting forward evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/next action: keep kraken paper validation running until the observed-hour and completed-cycle targets are met/i)).toBeInTheDocument();
     expect(screen.getByText(/6.5\/24 observed hours · 4\/10 completed cycles/i)).toBeInTheDocument();
     expect(screen.getByText(/1 crypto strategies ready · 2 evidence checks unresolved · campaign still running/i)).toBeInTheDocument();
     expect(screen.getByText(/kraken is not ready for live execution/i)).toBeInTheDocument();
