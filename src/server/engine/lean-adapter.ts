@@ -1,5 +1,6 @@
 import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
+import type { TradeLogEntry } from "../domain/trade-log";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -13,6 +14,7 @@ export class LeanAdapter implements EngineAdapter {
   private sessions = new Map<string, PaperSession>();
   private orders = new Map<string, NormalizedOrder[]>();
   private positions = new Map<string, PositionSnapshot[]>();
+  private trades = new Map<string, TradeLogEntry[]>();
   private backtests: BacktestResult[] = [];
 
   private getMode(): EngineStatus["mode"] {
@@ -62,6 +64,10 @@ export class LeanAdapter implements EngineAdapter {
     return this.positions.get(strategyId) ?? [];
   }
 
+  async getTrades(strategyId: string): Promise<TradeLogEntry[]> {
+    return this.trades.get(strategyId) ?? [];
+  }
+
   async getStrategyStatus(strategyId: string): Promise<StrategyRuntimeStatus> {
     const session = this.sessions.get(strategyId);
     return {
@@ -98,6 +104,10 @@ export class LeanAdapter implements EngineAdapter {
 
   setPositions(strategyId: string, positions: PositionSnapshot[]): void {
     this.positions.set(strategyId, positions);
+  }
+
+  setTrades(strategyId: string, trades: TradeLogEntry[]): void {
+    this.trades.set(strategyId, trades);
   }
 
   seedBacktests(backtests: BacktestResult[]): void {

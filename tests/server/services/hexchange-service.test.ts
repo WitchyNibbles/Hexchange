@@ -107,6 +107,45 @@ describe("hexchange service persistence", () => {
     expect(armed.stage).toBe("live");
   }, 15_000);
 
+  it("hydrates crypto paper telemetry from the Nautilus runtime", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await service.refreshRuntimeTelemetry();
+
+    const portfolio = service.getPortfolioSnapshot();
+    const trades = service.listTrades();
+
+    expect(portfolio.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "BTCUSD",
+          quantity: 0.021,
+          market: "crypto",
+        }),
+      ]),
+    );
+    expect(trades).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          strategyId: "crypto-breakout",
+          symbol: "BTCUSD",
+          quantity: 0.021,
+          explanation: "Kraken runtime telemetry executed the active crypto validation leg.",
+        }),
+      ]),
+    );
+  }, 15_000);
+
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();

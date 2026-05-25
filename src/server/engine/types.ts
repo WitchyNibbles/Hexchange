@@ -1,5 +1,6 @@
 import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
+import type { TradeLogEntry } from "../domain/trade-log";
 
 export interface BacktestRequest {
   strategyId: string;
@@ -26,6 +27,15 @@ export interface PaperSession {
   processId?: number | null;
   runtimeSource?: "synthetic" | "nautilus_trader" | null;
   executionMode?: "simulated" | "kraken_ready" | "ib_ready" | "dual_venue_ready" | null;
+}
+
+export interface PaperSessionTelemetry {
+  sessionId: string;
+  strategyId: string;
+  updatedAt: string;
+  orders: NormalizedOrder[];
+  positions: PositionSnapshot[];
+  trades: TradeLogEntry[];
 }
 
 export interface StrategyRuntimeStatus {
@@ -56,6 +66,7 @@ export interface EngineAdapter {
   stopSession(sessionId: string): Promise<void>;
   getOrders(strategyId: string): Promise<NormalizedOrder[]>;
   getPositions(strategyId: string): Promise<PositionSnapshot[]>;
+  getTrades(strategyId: string): Promise<TradeLogEntry[]>;
   getStrategyStatus(strategyId: string): Promise<StrategyRuntimeStatus>;
   getEngineStatus(): Promise<EngineStatus>;
 }

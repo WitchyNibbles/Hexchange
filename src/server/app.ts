@@ -28,21 +28,24 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.getHealth());
   }));
 
-  app.get("/api/system/status", (_request, response) => {
+  app.get("/api/system/status", asyncRoute(async (_request, response) => {
+    await service.refreshRuntimeTelemetry();
     response.json(service.getSystemStatus());
-  });
+  }));
 
-  app.get("/api/system/portfolio", (_request, response) => {
+  app.get("/api/system/portfolio", asyncRoute(async (_request, response) => {
+    await service.refreshRuntimeTelemetry();
     response.json(service.getPortfolioSnapshot());
-  });
+  }));
 
   app.get("/api/engine/status", asyncRoute(async (_request, response) => {
     response.json(await service.getEngineStatus());
   }));
 
-  app.get("/api/strategies", (_request, response) => {
+  app.get("/api/strategies", asyncRoute(async (_request, response) => {
+    await service.refreshRuntimeTelemetry();
     response.json(service.listStrategies());
-  });
+  }));
 
   app.post("/api/strategies/:strategyId/backtest", asyncRoute(async (request, response) => {
     response.json(await service.runStrategyBacktest(getRouteParam(request.params.strategyId)));
@@ -60,9 +63,10 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.armLiveStrategy(getRouteParam(request.params.strategyId)));
   }));
 
-  app.get("/api/trades", (_request, response) => {
+  app.get("/api/trades", asyncRoute(async (_request, response) => {
+    await service.refreshRuntimeTelemetry();
     response.json(service.listTrades());
-  });
+  }));
 
   app.post("/api/control/kill-switch", asyncRoute(async (request, response) => {
     const reason =

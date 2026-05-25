@@ -177,6 +177,39 @@ export class HexchangeService {
     };
   }
 
+  async refreshRuntimeTelemetry(): Promise<void> {
+    let stateChanged = false;
+
+    for (const [strategyId] of this.managedSessions.entries()) {
+      const strategy = this.findStrategy(strategyId);
+      const [orders, positions, trades] = await Promise.all([
+        this.engineAdapter.getOrders(strategyId),
+        this.engineAdapter.getPositions(strategyId),
+        this.engineAdapter.getTrades(strategyId),
+      ]);
+
+      if (orders.length > 0) {
+        this.orders = [...orders, ...this.orders.filter((item) => item.strategyId !== strategyId)];
+        stateChanged = true;
+      }
+
+      if (positions.length > 0) {
+        this.positions = [...positions, ...this.positions.filter((item) => item.symbol !== strategy.symbol)];
+        stateChanged = true;
+      }
+
+      if (trades.length > 0) {
+        this.trades = [...trades, ...this.trades.filter((item) => item.strategyId !== strategyId)];
+        this.syncEnginePortfolioState(strategyId);
+        stateChanged = true;
+      }
+    }
+
+    if (stateChanged) {
+      await this.persistState();
+    }
+  }
+
   async getLiveReadinessReport(): Promise<LiveReadinessReport> {
     const engineStatus = await this.getEngineStatus();
     return buildLiveReadinessReport({
@@ -240,37 +273,59 @@ export class HexchangeService {
 
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
+    const existingSession = this.managedSessions.get(strategyId) ?? null;
+
+    if (strategy.paperSessionActive && existingSession) {
+      const [existingOrders, existingPositions, existingTrades] = await Promise.all([
+        this.engineAdapter.getOrders(strategyId),
+        this.engineAdapter.getPositions(strategyId),
+        this.engineAdapter.getTrades(strategyId),
+      ]);
+      const hasRuntimeTelemetry =
+        existingOrders.length > 0 || existingPositions.length > 0 || existingTrades.length > 0;
+
+      if (existingSession.runtimeSource === "nautilus_trader" && !hasRuntimeTelemetry) {
+        await this.stopManagedSession(existingSession.sessionId);
+      } else {
+        await this.refreshRuntimeTelemetry();
+        return this.listStrategies().find((item) => item.id === strategyId)!;
+      }
+    }
+
+    const freshStrategy = this.findStrategy(strategyId);
     const session = await this.engineAdapter.startPaperSession(strategyId);
     this.managedSessions.set(strategyId, session);
     this.updateStrategy({
-      ...transitionStrategyState(strategy, "paper"),
+      ...(freshStrategy.stage === "paper"
+        ? { ...freshStrategy, paperSessionActive: true }
+        : transitionStrategyState(freshStrategy, "paper")),
       paperSessionActive: true,
     });
 
     await this.recordEvent({
       kind: "paper_session",
-      title: `${strategy.name} entered paper mode`,
-      body: `Session ${session.sessionId} started for ${strategy.symbol}.`,
+      title: `${freshStrategy.name} entered paper mode`,
+      body: `Session ${session.sessionId} started for ${freshStrategy.symbol}.`,
       severity: "info",
     });
 
-    if (strategy.signal) {
+    if (freshStrategy.signal && !(freshStrategy.market === "crypto" && session.runtimeSource === "nautilus_trader")) {
       const intent: OrderIntent = {
         id: createId("order"),
-        strategyId: strategy.id,
-        symbol: strategy.symbol,
-        market: strategy.market,
+        strategyId: freshStrategy.id,
+        symbol: freshStrategy.symbol,
+        market: freshStrategy.market,
         side: "buy",
-        quantity: strategy.market === "stock" ? 5 : 0.05,
+        quantity: freshStrategy.market === "stock" ? 5 : 0.05,
         submittedAt: new Date().toISOString(),
-        rationale: buildSignalNarrative(strategy.name, strategy.signal),
+        rationale: buildSignalNarrative(freshStrategy.name, freshStrategy.signal),
       };
 
       const riskCheck = this.riskEngine.evaluateOrder(intent, this.positions, this.getSystemStatus().dailyDrawdownPct);
       if (!riskCheck.approved) {
         await this.recordEvent({
           kind: "risk",
-          title: `${strategy.name} order blocked`,
+          title: `${freshStrategy.name} order blocked`,
           body: riskCheck.reason,
           severity: "warning",
         });
@@ -279,12 +334,14 @@ export class HexchangeService {
         this.orders.unshift(order);
         await this.recordEvent({
           kind: "order",
-          title: `${strategy.name} placed a paper order`,
+          title: `${freshStrategy.name} placed a paper order`,
           body: buildOrderNarrative(intent),
           severity: "info",
         });
       }
     }
+
+    await this.refreshRuntimeTelemetry();
 
     await this.persistState();
 

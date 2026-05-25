@@ -67,4 +67,48 @@ describe("nautilus runtime smoke", () => {
     expect(events.status).toBe(200);
     expect(events.body.some((event: { kind: string }) => event.kind === "paper_session")).toBe(true);
   }, 10_000);
+
+  it("surfaces Kraken paper telemetry through the operator APIs", async () => {
+    const appDir = await createTempDir("hexchange-nautilus-app-");
+    const runsDir = await createTempDir("hexchange-nautilus-runs-");
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_APP_DIR = appDir;
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const service = await createHexchangeService(appDir);
+    const app = createServerApp(service);
+
+    const session = await request(app).post("/api/strategies/crypto-breakout/paper-session");
+    expect(session.status).toBe(200);
+    expect(session.body.paperSessionActive).toBe(true);
+
+    const portfolio = await request(app).get("/api/system/portfolio");
+    expect(portfolio.status).toBe(200);
+    expect(portfolio.body.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "BTCUSD",
+          quantity: 0.021,
+          market: "crypto",
+        }),
+      ]),
+    );
+
+    const trades = await request(app).get("/api/trades");
+    expect(trades.status).toBe(200);
+    expect(trades.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          strategyId: "crypto-breakout",
+          symbol: "BTCUSD",
+          quantity: 0.021,
+          explanation: "Kraken runtime telemetry executed the active crypto validation leg.",
+        }),
+      ]),
+    );
+  }, 10_000);
 });

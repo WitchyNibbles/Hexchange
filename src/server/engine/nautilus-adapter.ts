@@ -1,16 +1,20 @@
+import path from "node:path";
 import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
+import type { TradeLogEntry } from "../domain/trade-log";
 import { existsSync } from "node:fs";
 import { createProcessRunner, type ProcessRunner, type ProcessRunnerResult } from "./process-runner";
 import { parseBacktestResult } from "./result-parser";
 import { parseRuntimeStatus } from "./runtime-status-parser";
 import { parsePaperSession } from "./session-parser";
+import { parseSessionTelemetry } from "./session-telemetry-parser";
 import type {
   BacktestRequest,
   BacktestResult,
   EngineAdapter,
   EngineStatus,
   PaperSession,
+  PaperSessionTelemetry,
   StrategyRuntimeStatus,
 } from "./types";
 
@@ -26,6 +30,7 @@ export class NautilusAdapter implements EngineAdapter {
   private sessions = new Map<string, PaperSession>();
   private orders = new Map<string, NormalizedOrder[]>();
   private positions = new Map<string, PositionSnapshot[]>();
+  private trades = new Map<string, TradeLogEntry[]>();
   private backtests: BacktestResult[] = [];
   private readonly runner: ProcessRunner;
 
@@ -106,11 +111,30 @@ export class NautilusAdapter implements EngineAdapter {
   }
 
   async getOrders(strategyId: string): Promise<NormalizedOrder[]> {
+    const telemetry = await this.readSessionTelemetry(strategyId);
+    if (telemetry) {
+      this.orders.set(strategyId, telemetry.orders);
+      return telemetry.orders;
+    }
     return this.orders.get(strategyId) ?? [];
   }
 
   async getPositions(strategyId: string): Promise<PositionSnapshot[]> {
+    const telemetry = await this.readSessionTelemetry(strategyId);
+    if (telemetry) {
+      this.positions.set(strategyId, telemetry.positions);
+      return telemetry.positions;
+    }
     return this.positions.get(strategyId) ?? [];
+  }
+
+  async getTrades(strategyId: string): Promise<TradeLogEntry[]> {
+    const telemetry = await this.readSessionTelemetry(strategyId);
+    if (telemetry) {
+      this.trades.set(strategyId, telemetry.trades);
+      return telemetry.trades;
+    }
+    return this.trades.get(strategyId) ?? [];
   }
 
   async getStrategyStatus(strategyId: string): Promise<StrategyRuntimeStatus> {
@@ -202,6 +226,10 @@ export class NautilusAdapter implements EngineAdapter {
     this.positions.set(strategyId, positions);
   }
 
+  setTrades(strategyId: string, trades: TradeLogEntry[]): void {
+    this.trades.set(strategyId, trades);
+  }
+
   seedBacktests(backtests: BacktestResult[]): void {
     this.backtests = backtests;
   }
@@ -225,6 +253,19 @@ export class NautilusAdapter implements EngineAdapter {
     }
 
     return parseRuntimeStatus(result.artifactPath);
+  }
+
+  private async readSessionTelemetry(strategyId: string): Promise<PaperSessionTelemetry | null> {
+    if (!this.options.runsDir) {
+      return null;
+    }
+
+    const artifactPath = path.join(this.options.runsDir, `session-${strategyId}-telemetry.json`);
+    if (!existsSync(artifactPath)) {
+      return null;
+    }
+
+    return parseSessionTelemetry(artifactPath);
   }
 
   private buildSimulatedBacktest(request: BacktestRequest): BacktestResult {
