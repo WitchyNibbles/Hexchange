@@ -73,6 +73,17 @@ describe("trades control center", () => {
           },
         ],
       },
+      "/api/control/validation-campaign": {
+        observedHoursTarget: 24,
+        completedCyclesTarget: 10,
+        observedHours: 6.5,
+        completedCycles: 4,
+        firstObservedCycleAt: "2026-05-24T06:00:00.000Z",
+        lastCompletedCycleAt: "2026-05-24T12:30:00.000Z",
+        readyCryptoStrategies: 1,
+        unresolvedCryptoEvidenceChecks: 2,
+        campaignReady: false,
+      },
       "/api/engine/status": {
         mode: "nautilus",
         available: true,
@@ -125,6 +136,9 @@ describe("trades control center", () => {
     expect(screen.getAllByText(/Daily loss threshold/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/engine venue posture/i)).toBeInTheDocument();
     expect(screen.getByText(/live readiness ritual/i)).toBeInTheDocument();
+    expect(screen.getByText(/validation campaign/i)).toBeInTheDocument();
+    expect(screen.getByText(/6.5\/24 observed hours · 4\/10 completed cycles/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 crypto strategies ready · 2 evidence checks unresolved · campaign still running/i)).toBeInTheDocument();
     expect(screen.getByText(/kraken is not ready for live execution/i)).toBeInTheDocument();
     expect(screen.getByText(/credentials loaded for kraken adapter/i)).toBeInTheDocument();
     expect(screen.getByText(/interactive brokers is optional for now because stock strategies are simulation-only/i)).toBeInTheDocument();

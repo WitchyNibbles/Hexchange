@@ -14,6 +14,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    fileParallelism: false,
     environment: "jsdom",
     setupFiles: "./tests/setup.ts",
     coverage: {

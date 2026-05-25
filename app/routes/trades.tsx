@@ -6,6 +6,7 @@ import {
   getRiskSettings,
   getSystemStatus,
   getTrades,
+  getValidationCampaignSummary,
   patchJson,
   postJson,
 } from "../lib/api";
@@ -17,6 +18,7 @@ import type {
   RiskSettings,
   SystemStatus,
   TradeSummary,
+  ValidationCampaignSummary,
 } from "../../src/shared/contracts";
 
 const emptyPortfolio: PortfolioSnapshot = {
@@ -61,6 +63,18 @@ const defaultLiveReadiness: LiveReadinessReport = {
   strategies: [],
 };
 
+const defaultValidationCampaign: ValidationCampaignSummary = {
+  observedHoursTarget: 24,
+  completedCyclesTarget: 10,
+  observedHours: 0,
+  completedCycles: 0,
+  firstObservedCycleAt: null,
+  lastCompletedCycleAt: null,
+  readyCryptoStrategies: 0,
+  unresolvedCryptoEvidenceChecks: 0,
+  campaignReady: false,
+};
+
 export function TradesRoute() {
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
   const portfolio = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
@@ -68,6 +82,10 @@ export function TradesRoute() {
   const status = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
   const engineStatus = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
   const liveReadiness = usePollingJson<LiveReadinessReport>(getLiveReadinessReport, defaultLiveReadiness);
+  const validationCampaign = usePollingJson<ValidationCampaignSummary>(
+    getValidationCampaignSummary,
+    defaultValidationCampaign,
+  );
   const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
 
   useEffect(() => {
@@ -189,6 +207,22 @@ export function TradesRoute() {
               </li>
             ))}
           </ul>
+        </div>
+        <div className="validation-report">
+          <strong>Validation campaign</strong>
+          <p>
+            {validationCampaign.observedHours.toFixed(1)}/{validationCampaign.observedHoursTarget} observed hours ·{" "}
+            {validationCampaign.completedCycles}/{validationCampaign.completedCyclesTarget} completed cycles
+          </p>
+          <p>
+            First observed cycle {validationCampaign.firstObservedCycleAt ?? "not started"} · last completed cycle{" "}
+            {validationCampaign.lastCompletedCycleAt ?? "none yet"}
+          </p>
+          <p>
+            {validationCampaign.readyCryptoStrategies} crypto strategies ready ·{" "}
+            {validationCampaign.unresolvedCryptoEvidenceChecks} evidence checks unresolved ·{" "}
+            {validationCampaign.campaignReady ? "target reached" : "campaign still running"}
+          </p>
         </div>
         <div className="settings-form">
           <label>
