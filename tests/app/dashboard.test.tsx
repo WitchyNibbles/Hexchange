@@ -19,6 +19,48 @@ describe("dashboard route", () => {
         dataFreshness: "fresh",
       },
       "/api/events": [],
+      "/api/strategies": [
+        {
+          id: "crypto-breakout",
+          name: "BTC Breakout Familiar",
+          market: "crypto",
+          symbol: "BTCUSD",
+          stage: "paper",
+          currentActivity: "kraken paper validation active",
+          signal: null,
+          validation: {
+            sampleSize: 49,
+            feeAdjustedReturnPct: 14.2,
+            maxDrawdownPct: 4.8,
+            profitFactor: 1.9,
+            sharpeRatio: 1.33,
+            slippageBps: 11,
+            paperDriftPct: 2.1,
+          },
+          paperSessionActive: true,
+          paperSession: null,
+          deploymentMode: "kraken_live_candidate",
+          operatorWarning: "Kraken is the only venue that can progress from paper validation to live trading right now.",
+          liveEligible: true,
+          validationReport: ["strategy passed all promotion gates"],
+          paperValidationStats: {
+            cycles: 4,
+            completedCycles: 3,
+            cumulativeRealizedPnlUsd: 26.41,
+            averageReturnPct: 0.58,
+            winRatePct: 66.67,
+          },
+          lastPaperCycle: {
+            status: "completed",
+            realizedPnlUsd: 8.66,
+            entryNotionalUsd: 1358.45,
+            paperReturnPct: 0.64,
+            exitCount: 2,
+            completedAt: "2026-05-24T12:00:00.000Z",
+          },
+          lastBacktest: null,
+        },
+      ],
       "/api/trades": [
         {
           id: "trade-kraken-exit",
@@ -57,5 +99,9 @@ describe("dashboard route", () => {
 
     expect(screen.getByText(/BTCUSD sell at \$65220\.00/i)).toBeInTheDocument();
     expect(screen.getByText(/kraken · paper · session paper-crypto-breakout/i)).toBeInTheDocument();
+    expect(screen.getByText(/paper record/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 completed cycles/i)).toBeInTheDocument();
+    expect(screen.getByText(/66.67% win rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$26.41 cumulative pnl/i)).toBeInTheDocument();
   });
 });
