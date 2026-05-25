@@ -2,6 +2,15 @@ import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult } from "../engine/types";
 import { evaluatePromotionGates } from "../strategies/promotion-gates";
 
+export interface PaperCycleEvidence {
+  status: "completed" | "running";
+  realizedPnlUsd: number;
+  entryNotionalUsd: number;
+  paperReturnPct: number;
+  exitCount: number;
+  completedAt: string | null;
+}
+
 export interface LiveArmamentDecision {
   allowed: boolean;
   reason: string;
@@ -11,6 +20,7 @@ export interface LiveArmamentDecision {
 export function evaluateLiveArmamentPolicy(
   strategy: StrategyState,
   lastBacktest: BacktestResult | null,
+  lastPaperCycle: PaperCycleEvidence | null,
 ): LiveArmamentDecision {
   if (strategy.market === "stock") {
     return {
@@ -37,10 +47,10 @@ export function evaluateLiveArmamentPolicy(
     };
   }
 
-  if (!strategy.paperSessionActive) {
+  if (!strategy.paperSessionActive && lastPaperCycle?.status !== "completed") {
     return {
       allowed: false,
-      reason: "An active paper session is required before live armament.",
+      reason: "An active paper session or a completed paper cycle is required before live armament.",
       notionalCapUsd: 0,
     };
   }

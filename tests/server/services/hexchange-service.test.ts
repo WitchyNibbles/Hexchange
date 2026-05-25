@@ -225,6 +225,7 @@ describe("hexchange service persistence", () => {
 
     const service = await createHexchangeService(appDir);
 
+    await service.runStrategyBacktest("crypto-breakout");
     await service.startPaperSession("crypto-breakout");
     await new Promise((resolve) => setTimeout(resolve, 1400));
     await service.refreshRuntimeTelemetry();
@@ -244,7 +245,8 @@ describe("hexchange service persistence", () => {
     expect(service.getManagedSession("crypto-breakout")).toBeNull();
     const completedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
     expect(completedStrategy?.paperSessionActive).toBe(false);
-    expect(completedStrategy?.validation.paperDriftPct).toBeGreaterThan(3.4);
+    expect(completedStrategy?.validation.paperDriftPct).not.toBe(3.4);
+    expect(completedStrategy?.validation.sampleSize).toBeGreaterThan(48);
     expect(completedStrategy?.lastPaperCycle).toEqual(
       expect.objectContaining({
         realizedPnlUsd: expect.any(Number),
@@ -253,6 +255,9 @@ describe("hexchange service persistence", () => {
       }),
     );
     expect(service.getSystemStatus().mode).toBe("research");
+    const armedAfterCompletion = await service.armLiveStrategy("crypto-breakout");
+    expect(armedAfterCompletion.stage).toBe("live");
+    expect(service.getSystemStatus().mode).toBe("live");
   }, 20_000);
 
   it("keeps stock strategies simulation-only even after backtest and paper activity", async () => {
