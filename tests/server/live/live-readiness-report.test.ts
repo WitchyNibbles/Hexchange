@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLiveReadinessReport } from "../../../src/server/live/live-readiness-report";
-import type { EngineStatus, RiskSettings } from "../../../src/shared/contracts";
+import type { EngineStatus, RiskSettings, ValidationCampaignSummary } from "../../../src/shared/contracts";
 import type { StrategyState } from "../../../src/server/domain/strategy";
 import type { BacktestResult, PaperSession } from "../../../src/server/engine/types";
 
@@ -150,6 +150,36 @@ const baseLastPaperCycleByStrategy = new Map([
   ],
 ]);
 
+const readyCampaign: ValidationCampaignSummary = {
+  status: "ready",
+  summary: "Forward validation target reached.",
+  nextAction: "Review the Kraken paper evidence and decide whether to arm live trading.",
+  observedHoursTarget: 24,
+  completedCyclesTarget: 10,
+  observedHours: 25.2,
+  completedCycles: 12,
+  firstObservedCycleAt: "2026-05-25T00:00:00.000Z",
+  lastCompletedCycleAt: "2026-05-26T00:12:00.000Z",
+  readyCryptoStrategies: 1,
+  unresolvedCryptoEvidenceChecks: 0,
+  campaignReady: true,
+};
+
+const collectingCampaign: ValidationCampaignSummary = {
+  status: "collecting",
+  summary: "Kraken paper validation is actively collecting forward evidence.",
+  nextAction: "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.",
+  observedHoursTarget: 24,
+  completedCyclesTarget: 10,
+  observedHours: 0.8,
+  completedCycles: 1,
+  firstObservedCycleAt: "2026-05-26T00:00:00.000Z",
+  lastCompletedCycleAt: "2026-05-26T00:48:00.000Z",
+  readyCryptoStrategies: 0,
+  unresolvedCryptoEvidenceChecks: 4,
+  campaignReady: false,
+};
+
 describe("live readiness report", () => {
   it("marks the crypto platform ready while keeping stocks simulation-only", () => {
     const report = buildLiveReadinessReport({
@@ -164,6 +194,7 @@ describe("live readiness report", () => {
       lastPaperCycleByStrategy: baseLastPaperCycleByStrategy,
       riskSettings: baseRiskSettings,
       killSwitchEngaged: false,
+      validationCampaign: readyCampaign,
     });
 
     expect(report.overallStatus).toBe("ready");
@@ -249,6 +280,7 @@ describe("live readiness report", () => {
       ]),
       riskSettings: { ...baseRiskSettings, liveRolloutCapUsd: 2500 },
       killSwitchEngaged: true,
+      validationCampaign: collectingCampaign,
     });
 
     expect(report.overallStatus).toBe("blocked");
@@ -272,6 +304,7 @@ describe("live readiness report", () => {
         "Reset the kill switch before arming live.",
         "Kraken must be connected for crypto execution.",
         "Complete at least 2 Kraken paper cycles before live armament.",
+        "Keep Kraken paper validation running until the campaign reaches 24 observed hours and 10 completed cycles.",
       ]),
     );
   });

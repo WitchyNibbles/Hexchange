@@ -1,6 +1,6 @@
 import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult } from "../engine/types";
-import type { PaperValidationStats } from "../../shared/contracts";
+import type { PaperValidationStats, ValidationCampaignSummary } from "../../shared/contracts";
 import { transitionStrategyState } from "../domain/strategy";
 import { evaluateLiveArmamentPolicy, type PaperCycleEvidence } from "./live-armament-policy";
 
@@ -16,8 +16,15 @@ export class LiveTradingController {
       averageReturnPct: 0,
       winRatePct: 0,
     },
+    validationCampaign: ValidationCampaignSummary | null = null,
   ): StrategyState {
-    const decision = evaluateLiveArmamentPolicy(strategy, lastBacktest, lastPaperCycle, paperValidationStats);
+    const decision = evaluateLiveArmamentPolicy(
+      strategy,
+      lastBacktest,
+      lastPaperCycle,
+      paperValidationStats,
+      validationCampaign,
+    );
     if (!decision.allowed) {
       throw new Error(decision.reason);
     }

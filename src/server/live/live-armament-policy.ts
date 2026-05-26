@@ -1,6 +1,10 @@
 import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult } from "../engine/types";
-import type { LiveEvidenceProgress, PaperValidationStats } from "../../shared/contracts";
+import type {
+  LiveEvidenceProgress,
+  PaperValidationStats,
+  ValidationCampaignSummary,
+} from "../../shared/contracts";
 import { evaluatePromotionGates } from "../strategies/promotion-gates";
 
 export interface PaperCycleEvidence {
@@ -25,6 +29,7 @@ export function buildLiveEvidenceProgress(
   strategy: StrategyState,
   lastBacktest: BacktestResult | null,
   paperValidationStats: PaperValidationStats,
+  validationCampaign: ValidationCampaignSummary | null = null,
 ): LiveEvidenceProgress {
   if (strategy.market === "stock") {
     return {
@@ -57,6 +62,20 @@ export function buildLiveEvidenceProgress(
     status: completedCyclesReady ? "pass" : paperValidationStats.completedCycles > 0 ? "warn" : "blocked",
     summary: `${paperValidationStats.completedCycles}/${MIN_COMPLETED_PAPER_CYCLES} completed.`,
   });
+
+  if (validationCampaign) {
+    const campaignReady = validationCampaign.campaignReady;
+    items.push({
+      id: "validation-campaign",
+      label: "Validation campaign",
+      status: campaignReady
+        ? "pass"
+        : validationCampaign.completedCycles > 0 || validationCampaign.observedHours > 0
+          ? "warn"
+          : "blocked",
+      summary: `${validationCampaign.observedHours.toFixed(1)}/${validationCampaign.observedHoursTarget} observed hours and ${validationCampaign.completedCycles}/${validationCampaign.completedCyclesTarget} completed cycles.`,
+    });
+  }
 
   const netPnlReady = paperValidationStats.cumulativeRealizedPnlUsd > 0;
   items.push({
@@ -91,10 +110,23 @@ export function buildLiveEvidenceProgress(
 }
 
 export function evaluatePaperEvidencePolicy(paperValidationStats: PaperValidationStats): string[] {
+  return evaluatePaperEvidencePolicyWithCampaign(paperValidationStats, null);
+}
+
+export function evaluatePaperEvidencePolicyWithCampaign(
+  paperValidationStats: PaperValidationStats,
+  validationCampaign: ValidationCampaignSummary | null,
+): string[] {
   const reasons: string[] = [];
 
   if (paperValidationStats.completedCycles < MIN_COMPLETED_PAPER_CYCLES) {
     reasons.push(`Complete at least ${MIN_COMPLETED_PAPER_CYCLES} Kraken paper cycles before live armament.`);
+  }
+
+  if (validationCampaign && !validationCampaign.campaignReady) {
+    reasons.push(
+      `Keep Kraken paper validation running until the campaign reaches ${validationCampaign.observedHoursTarget} observed hours and ${validationCampaign.completedCyclesTarget} completed cycles.`,
+    );
   }
 
   if (paperValidationStats.cumulativeRealizedPnlUsd <= 0) {
@@ -117,6 +149,7 @@ export function evaluateLiveArmamentPolicy(
   lastBacktest: BacktestResult | null,
   lastPaperCycle: PaperCycleEvidence | null,
   paperValidationStats: PaperValidationStats,
+  validationCampaign: ValidationCampaignSummary | null = null,
 ): LiveArmamentDecision {
   if (strategy.market === "stock") {
     return {
@@ -151,7 +184,10 @@ export function evaluateLiveArmamentPolicy(
     };
   }
 
-  const paperEvidenceReasons = evaluatePaperEvidencePolicy(paperValidationStats);
+  const paperEvidenceReasons = evaluatePaperEvidencePolicyWithCampaign(
+    paperValidationStats,
+    validationCampaign,
+  );
   if (paperEvidenceReasons.length > 0) {
     return {
       allowed: false,

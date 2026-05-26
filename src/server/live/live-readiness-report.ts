@@ -5,6 +5,7 @@ import type {
   PaperValidationStats,
   RiskSettings,
   StrategyLiveReadiness,
+  ValidationCampaignSummary,
 } from "../../shared/contracts";
 import type { StrategyState } from "../domain/strategy";
 import type { BacktestResult, PaperSession } from "../engine/types";
@@ -22,6 +23,7 @@ interface BuildLiveReadinessReportInput {
   lastPaperCycleByStrategy: Map<string, PaperCycleEvidence | null>;
   riskSettings: RiskSettings;
   killSwitchEngaged: boolean;
+  validationCampaign: ValidationCampaignSummary | null;
 }
 
 function buildRuntimeCheck(engineStatus: EngineStatus): LiveReadinessCheck {
@@ -137,6 +139,7 @@ function buildStrategyReadiness(
   lastPaperCycleByStrategy: Map<string, PaperCycleEvidence | null>,
   engineStatus: EngineStatus,
   killSwitchEngaged: boolean,
+  validationCampaign: ValidationCampaignSummary | null,
 ): StrategyLiveReadiness {
   const blockers: string[] = [];
   const paperValidationStats = paperValidationStatsByStrategy.get(strategy.id) ?? {
@@ -146,7 +149,7 @@ function buildStrategyReadiness(
     averageReturnPct: 0,
     winRatePct: 0,
   };
-  const validation = buildValidationReport(strategy, paperValidationStats);
+  const validation = buildValidationReport(strategy, paperValidationStats, validationCampaign);
   const lastBacktest = backtests.find((item) => item.strategyId === strategy.id) ?? null;
   const paperSession = managedSessions.get(strategy.id) ?? null;
   const lastPaperCycle = lastPaperCycleByStrategy.get(strategy.id) ?? null;
@@ -223,6 +226,7 @@ export function buildLiveReadinessReport(input: BuildLiveReadinessReportInput): 
       input.lastPaperCycleByStrategy,
       input.engineStatus,
       input.killSwitchEngaged,
+      input.validationCampaign,
     ),
   );
 

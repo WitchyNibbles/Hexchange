@@ -186,6 +186,8 @@ describe("hexchange service persistence", () => {
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
     process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "0";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "2";
 
     const service = await createHexchangeService(appDir);
 
@@ -291,6 +293,8 @@ describe("hexchange service persistence", () => {
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
     process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "0";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "2";
 
     const service = await createHexchangeService(appDir);
 

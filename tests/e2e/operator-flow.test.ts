@@ -71,6 +71,8 @@ describe("operator flow", () => {
     process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
     process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "0";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "2";
     service = await createHexchangeService();
     service.startRuntimeHeartbeat(100);
     app = createServerApp(service);
@@ -117,8 +119,8 @@ describe("operator flow", () => {
     expect(initialCampaign.status).toBe(200);
     expect(initialCampaign.body).toEqual(
       expect.objectContaining({
-        observedHoursTarget: 24,
-        completedCyclesTarget: 10,
+        observedHoursTarget: 0,
+        completedCyclesTarget: 2,
         campaignReady: false,
       }),
     );

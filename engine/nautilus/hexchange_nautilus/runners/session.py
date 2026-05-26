@@ -511,6 +511,31 @@ def _load_or_initialize_session_state(
     quantity = float(seed["quantity"])
     entry_fee = round(entry_price * quantity * 0.001, 2)
 
+    if strategy_id == "crypto-breakout" and _crypto_breakout_requires_confirmed_entry():
+        return {
+            "strategyId": strategy_id,
+            "sessionId": session_id,
+            "symbol": seed["symbol"],
+            "market": seed["market"],
+            "phase": "waiting_entry",
+            "tick": 0,
+            "startedAt": started_at,
+            "referencePrice": entry_price,
+            "entryPrice": entry_price,
+            "currentPrice": entry_price,
+            "initialQuantity": quantity,
+            "remainingQuantity": 0.0,
+            "plannedQuantity": quantity,
+            "realizedPnlUsd": 0.0,
+            "entryTick": 0,
+            "highestPrice": entry_price,
+            "priceWindow": [entry_price],
+            "expectedEdgeBps": seed["expectedEdgeBps"],
+            "entryExplanation": seed["explanation"],
+            "orders": [],
+            "trades": [],
+        }
+
     return {
         "strategyId": strategy_id,
         "sessionId": session_id,
@@ -584,9 +609,32 @@ def _advance_session_state(
     if strategy_id != "crypto-breakout":
         return next_state
 
+    phase = str(next_state.get("phase", "open"))
+
+    if phase == "waiting_entry":
+        price_window = [float(value) for value in list(next_state.get("priceWindow", [])) if isinstance(value, (float, int))]
+        price_window.append(current_price)
+        price_window = price_window[-4:]
+        next_state["priceWindow"] = price_window
+        reference_price = float(next_state.get("referencePrice", current_price))
+        breakout_trigger = max(price_window[:-1], default=reference_price)
+        confirmation_ready = (
+            len(price_window) >= 4
+            and current_price >= reference_price * 1.0004
+            and current_price >= breakout_trigger * 1.00035
+        )
+        if confirmation_ready:
+            _append_entry_fill(next_state, float(next_state.get("plannedQuantity", next_state["initialQuantity"])), current_price, updated_at)
+            next_state["entryTick"] = int(next_state["tick"])
+            next_state["highestPrice"] = current_price
+            next_state["phase"] = "open"
+        elif int(next_state["tick"]) >= 90:
+            next_state["referencePrice"] = current_price
+            next_state["priceWindow"] = [current_price]
+        return next_state
+
     entry_price = float(next_state["entryPrice"])
     remaining_quantity = float(next_state["remainingQuantity"])
-    phase = str(next_state.get("phase", "open"))
     fast_test_cycle = bool(_read_test_price_series())
     entry_tick = int(next_state.get("entryTick", 0))
     holding_ticks = max(int(next_state["tick"]) - entry_tick, 0)
@@ -695,6 +743,58 @@ def _append_exit_fill(
     ]
 
 
+def _append_entry_fill(
+    state: dict[str, Any],
+    quantity: float,
+    price: float,
+    created_at: str,
+) -> None:
+    if quantity <= 0:
+        return
+
+    fee_usd = round(price * quantity * 0.001, 2)
+    state["entryPrice"] = price
+    state["currentPrice"] = price
+    state["initialQuantity"] = quantity
+    state["remainingQuantity"] = quantity
+    state["entryTick"] = int(state.get("tick", 0))
+    state["highestPrice"] = price
+    state["orders"] = [
+        {
+            "id": f"runtime-order-entry-{state['strategyId']}",
+            "strategyId": state["strategyId"],
+            "symbol": state["symbol"],
+            "market": state["market"],
+            "side": "buy",
+            "quantity": quantity,
+            "submittedAt": created_at,
+            "rationale": state["entryExplanation"],
+            "status": "filled",
+            "averageFillPrice": price,
+        }
+    ]
+    state["trades"] = [
+        {
+            "id": f"runtime-trade-entry-{state['strategyId']}-{state['sessionId']}",
+            "strategyId": state["strategyId"],
+            "symbol": state["symbol"],
+            "market": state["market"],
+            "venue": _trade_venue(str(state["market"])),
+            "executionMode": "paper",
+            "runtimeSource": _runtime_source(),
+            "sessionId": state["sessionId"],
+            "side": "buy",
+            "quantity": quantity,
+            "price": price,
+            "feeUsd": fee_usd,
+            "realizedPnlUsd": 0.0,
+            "expectedEdgeBps": state["expectedEdgeBps"],
+            "explanation": state["entryExplanation"],
+            "createdAt": created_at,
+        }
+    ]
+
+
 def _trade_venue(market: str) -> str:
     return "kraken" if market == "crypto" else "simulation"
 
@@ -726,6 +826,17 @@ def _read_test_price_series() -> list[float]:
         if parsed > 0:
             values.append(parsed)
     return values
+
+
+def _crypto_breakout_requires_confirmed_entry() -> bool:
+    if _read_test_price_series():
+        return False
+    return os.getenv("HEXCHANGE_CRYPTO_PAPER_CONFIRMED_ENTRY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _read_cached_kraken_public_price(runs_path: Path) -> float | None:

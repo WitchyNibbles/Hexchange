@@ -150,14 +150,20 @@ export class HexchangeService {
   }
 
   listStrategies(): StrategySummary[] {
+    const validationCampaign = this.getValidationCampaignSummary();
     return this.strategies.map((strategy) => {
       const simulationOnly = strategy.market === "stock";
       const paperValidationStats = this.buildPaperValidationStats(strategy.id);
-      const validation = buildValidationReport(strategy, paperValidationStats);
+      const validation = buildValidationReport(strategy, paperValidationStats, validationCampaign);
       const lastPaperCycle = this.buildLastPaperCycleSummary(strategy.id);
       const paperCycleHistory = this.buildPaperCycleHistory(strategy.id);
       const lastBacktest = this.backtests.find((item) => item.strategyId === strategy.id) ?? null;
-      const liveEvidenceProgress = buildLiveEvidenceProgress(strategy, lastBacktest, paperValidationStats);
+      const liveEvidenceProgress = buildLiveEvidenceProgress(
+        strategy,
+        lastBacktest,
+        paperValidationStats,
+        validationCampaign,
+      );
 
       return {
         id: strategy.id,
@@ -383,23 +389,23 @@ export class HexchangeService {
       lastPaperCycleByStrategy,
       riskSettings: this.getRiskSettings(),
       killSwitchEngaged: this.killSwitch.getState().engaged,
+      validationCampaign: this.getValidationCampaignSummary(),
     });
   }
 
   getValidationCampaignSummary(): ValidationCampaignSummary {
-    const strategies = this.listStrategies();
-    const cryptoStrategies = strategies.filter((strategy) => strategy.market === "crypto");
-    const completedCycles = strategies.reduce(
-      (sum, strategy) => sum + strategy.paperValidationStats.completedCycles,
+    const cryptoStrategies = this.strategies.filter((strategy) => strategy.market === "crypto");
+    const completedCycles = cryptoStrategies.reduce(
+      (sum, strategy) => sum + this.buildPaperValidationStats(strategy.id).completedCycles,
       0,
     );
     const firstObservedCycleAt = cryptoStrategies
-      .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.startedAt))
+      .flatMap((strategy) => this.buildPaperCycleHistory(strategy.id).map((cycle) => cycle.startedAt))
       .filter((value): value is string => Boolean(value))
       .sort()[0] ?? null;
     const lastCompletedCycleAt =
       cryptoStrategies
-        .flatMap((strategy) => strategy.paperCycleHistory.map((cycle) => cycle.completedAt))
+        .flatMap((strategy) => this.buildPaperCycleHistory(strategy.id).map((cycle) => cycle.completedAt))
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
@@ -412,12 +418,6 @@ export class HexchangeService {
             ).toFixed(1),
           )
         : 0;
-    const readyCryptoStrategies = cryptoStrategies.filter((strategy) => strategy.liveEvidenceProgress.ready).length;
-    const unresolvedCryptoEvidenceChecks = cryptoStrategies.reduce(
-      (sum, strategy) =>
-        sum + strategy.liveEvidenceProgress.items.filter((item) => item.status !== "pass").length,
-      0,
-    );
     const campaignReady =
       observedHours >= this.validationCampaignTargets.observedHours &&
       completedCycles >= this.validationCampaignTargets.completedCycles;
@@ -479,6 +479,22 @@ export class HexchangeService {
           : status === "stalled"
             ? "Inspect the paper runtime and restart Kraken paper validation."
             : "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.";
+
+    const readyCryptoStrategies = cryptoStrategies.filter((strategy) => {
+      const lastBacktest = this.backtests.find((item) => item.strategyId === strategy.id) ?? null;
+      const paperValidationStats = this.buildPaperValidationStats(strategy.id);
+      return buildLiveEvidenceProgress(strategy, lastBacktest, paperValidationStats, null).ready;
+    }).length;
+    const unresolvedCryptoEvidenceChecks = cryptoStrategies.reduce((sum, strategy) => {
+      const lastBacktest = this.backtests.find((item) => item.strategyId === strategy.id) ?? null;
+      const paperValidationStats = this.buildPaperValidationStats(strategy.id);
+      return (
+        sum +
+        buildLiveEvidenceProgress(strategy, lastBacktest, paperValidationStats, null).items.filter(
+          (item) => item.status !== "pass",
+        ).length
+      );
+    }, 0);
 
     return {
       status,
@@ -794,6 +810,7 @@ export class HexchangeService {
       latestBacktest,
       this.buildLastPaperCycleSummary(strategyId),
       this.buildPaperValidationStats(strategyId),
+      this.getValidationCampaignSummary(),
     );
     this.updateStrategy(armed);
 

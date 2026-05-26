@@ -1,6 +1,6 @@
 import type { StrategyState } from "../domain/strategy";
-import type { PaperValidationStats } from "../../shared/contracts";
-import { evaluatePaperEvidencePolicy } from "../live/live-armament-policy";
+import type { PaperValidationStats, ValidationCampaignSummary } from "../../shared/contracts";
+import { evaluatePaperEvidencePolicyWithCampaign } from "../live/live-armament-policy";
 import { evaluatePromotionGates } from "./promotion-gates";
 
 export interface ValidationReport {
@@ -12,11 +12,12 @@ export interface ValidationReport {
 export function buildValidationReport(
   strategy: StrategyState,
   paperValidationStats?: PaperValidationStats,
+  validationCampaign?: ValidationCampaignSummary | null,
 ): ValidationReport {
   const result = evaluatePromotionGates(strategy.validation);
   const paperReasons =
     strategy.market === "crypto" && paperValidationStats
-      ? evaluatePaperEvidencePolicy(paperValidationStats)
+      ? evaluatePaperEvidencePolicyWithCampaign(paperValidationStats, validationCampaign ?? null)
       : [];
   const reasons = [...result.reasons, ...paperReasons];
 

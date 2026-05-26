@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LiveTradingController } from "../../../src/server/live/live-trading-controller";
 import type { StrategyState } from "../../../src/server/domain/strategy";
 import type { BacktestResult } from "../../../src/server/engine/types";
+import type { ValidationCampaignSummary } from "../../../src/shared/contracts";
 
 describe("live trading controller", () => {
   const realBacktest: BacktestResult = {
@@ -13,6 +14,20 @@ describe("live trading controller", () => {
     executedAt: "2026-05-24T12:00:00.000Z",
     runtimeSource: "nautilus_trader",
     dataSource: "Locally generated sample bars via NautilusTrader.",
+  };
+  const readyCampaign: ValidationCampaignSummary = {
+    status: "ready",
+    summary: "Forward validation target reached.",
+    nextAction: "Review the Kraken paper evidence and decide whether to arm live trading.",
+    observedHoursTarget: 24,
+    completedCyclesTarget: 10,
+    observedHours: 24.5,
+    completedCycles: 12,
+    firstObservedCycleAt: "2026-05-25T00:00:00.000Z",
+    lastCompletedCycleAt: "2026-05-26T00:30:00.000Z",
+    readyCryptoStrategies: 1,
+    unresolvedCryptoEvidenceChecks: 0,
+    campaignReady: true,
   };
 
   it("arms validated strategies for live trading", () => {
@@ -43,7 +58,7 @@ describe("live trading controller", () => {
         cumulativeRealizedPnlUsd: 17.32,
         averageReturnPct: 0.64,
         winRatePct: 100,
-      }).stage,
+      }, readyCampaign).stage,
     ).toBe("live");
   });
 
@@ -82,7 +97,7 @@ describe("live trading controller", () => {
         cumulativeRealizedPnlUsd: 17.32,
         averageReturnPct: 0.64,
         winRatePct: 100,
-      }).stage,
+      }, readyCampaign).stage,
     ).toBe("live");
   });
 
@@ -121,7 +136,7 @@ describe("live trading controller", () => {
         cumulativeRealizedPnlUsd: 8.66,
         averageReturnPct: 0.64,
         winRatePct: 100,
-      }),
+      }, readyCampaign),
     ).toThrow(/at least 2 Kraken paper cycles/i);
   });
 
