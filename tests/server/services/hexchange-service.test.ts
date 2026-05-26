@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -68,6 +68,45 @@ async function waitForCampaignStatus(
   }
 
   throw new Error(`Timed out waiting for validation campaign status ${expectedStatus}`);
+}
+
+async function writeKrakenPublicPrice(runsDir: string, price: number): Promise<void> {
+  await writeFile(
+    path.join(runsDir, "kraken-public-price.json"),
+    JSON.stringify(
+      {
+        checkedAt: new Date().toISOString(),
+        price,
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
+async function readSessionState(runsDir: string): Promise<{
+  referencePrice: number;
+}> {
+  return JSON.parse(
+    await readFile(path.join(runsDir, "session-crypto-breakout-state.json"), "utf8"),
+  ) as { referencePrice: number };
+}
+
+async function waitForOpenCryptoPosition(service: HexchangeService, timeoutMs = 6000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await service.refreshRuntimeTelemetry();
+    const portfolio = service.getPortfolioSnapshot();
+    const positions = portfolio.positions.filter((position) => position.symbol === "BTCUSD");
+    if (positions.length > 0 && service.listTrades().some((trade) => trade.strategyId === "crypto-breakout")) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error("Timed out waiting for a confirmed crypto paper entry");
 }
 
 async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
@@ -774,6 +813,53 @@ describe("hexchange service persistence", () => {
     expect(strategy?.paperValidationStats.completedCycles).toBe(0);
     expect(service.getSystemStatus().currentActivity).toBe(
       "BTC Lunar Breakout is waiting for a confirmed Kraken paper entry on BTCUSD. Forward evidence is collecting.",
+    );
+  }, 15_000);
+
+  it("allows a confirmed-entry paper worker to open once the Kraken price breaks out", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_CRYPTO_PAPER_CONFIRMED_ENTRY = "1";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await service.refreshRuntimeTelemetry();
+
+    const { referencePrice } = await readSessionState(runsDir);
+    await writeKrakenPublicPrice(runsDir, referencePrice);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await writeKrakenPublicPrice(runsDir, Number((referencePrice * 1.0001).toFixed(1)));
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await writeKrakenPublicPrice(runsDir, Number((referencePrice * 1.0002).toFixed(1)));
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await writeKrakenPublicPrice(runsDir, Number((referencePrice * 1.0008).toFixed(1)));
+
+    await waitForOpenCryptoPosition(service);
+
+    const strategy = service.listStrategies().find((item) => item.id === "crypto-breakout");
+    expect(strategy?.currentActivity).toBe("kraken paper validation active");
+    expect(service.getPortfolioSnapshot().positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "BTCUSD",
+          quantity: 0.021,
+        }),
+      ]),
+    );
+    expect(service.listTrades()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          strategyId: "crypto-breakout",
+          side: "buy",
+        }),
+      ]),
     );
   }, 15_000);
 

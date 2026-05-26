@@ -529,6 +529,7 @@ def _load_or_initialize_session_state(
             "realizedPnlUsd": 0.0,
             "entryTick": 0,
             "highestPrice": entry_price,
+            "referenceTick": 0,
             "priceWindow": [entry_price],
             "expectedEdgeBps": seed["expectedEdgeBps"],
             "entryExplanation": seed["explanation"],
@@ -628,8 +629,9 @@ def _advance_session_state(
             next_state["entryTick"] = int(next_state["tick"])
             next_state["highestPrice"] = current_price
             next_state["phase"] = "open"
-        elif int(next_state["tick"]) >= 90:
+        elif int(next_state["tick"]) - int(next_state.get("referenceTick", 0)) >= 90:
             next_state["referencePrice"] = current_price
+            next_state["referenceTick"] = int(next_state["tick"])
             next_state["priceWindow"] = [current_price]
         return next_state
 
