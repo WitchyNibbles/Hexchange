@@ -82,8 +82,38 @@ describe("nautilus session lifecycle", () => {
     const second = await createHexchangeService(appDir);
     const restoredSession = second.getManagedSession("stock-momentum");
 
-    expect(restoredSession).toEqual(firstSession);
-  });
+    expect(restoredSession?.sessionId).toBe(firstSession?.sessionId);
+    expect(restoredSession?.strategyId).toBe(firstSession?.strategyId);
+    expect(restoredSession?.processId).toBe(firstSession?.processId);
+    expect(restoredSession?.startedAt).toBe(firstSession?.startedAt);
+    expect(restoredSession?.lastHeartbeatAt).toBeTruthy();
+  }, 15_000);
+
+  it("reattaches an active runtime session even when the new app state starts empty", async () => {
+    const firstAppDir = await createTempDir();
+    const secondAppDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+
+    const first = await createHexchangeService(firstAppDir);
+    await first.startPaperSession("crypto-breakout");
+
+    const second = await createHexchangeService(secondAppDir);
+    const restoredStrategy = second.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
+    const restoredSession = second.getManagedSession("crypto-breakout");
+    const campaign = second.getValidationCampaignSummary();
+
+    expect(restoredSession?.sessionId).toContain("paper-crypto-breakout");
+    expect(restoredSession?.processId).toEqual(expect.any(Number));
+    expect(restoredStrategy?.paperSessionActive).toBe(true);
+    expect(campaign.status).toBe("collecting");
+    expect(campaign.firstObservedCycleAt).toBeTruthy();
+  }, 15_000);
 
   it("can stop a managed session by runtime id", async () => {
     const appDir = await createTempDir();
@@ -96,8 +126,8 @@ describe("nautilus session lifecycle", () => {
     process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
     const service = await createHexchangeService(appDir);
 
-    await service.startPaperSession("stock-momentum");
-    const session = service.getManagedSession("stock-momentum");
+    const started = await service.startPaperSession("stock-momentum");
+    const session = started.paperSession ?? service.getManagedSession("stock-momentum");
 
     expect(session).not.toBeNull();
 

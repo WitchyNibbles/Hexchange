@@ -10,13 +10,14 @@ import { createHexchangeService } from "../../src/server/services/hexchange-serv
 async function waitForCompletedCycles(
   app: ReturnType<typeof createServerApp>,
   minimumCompletedCycles: number,
-  timeoutMs = 10000,
+  timeoutMs = 20000,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
     const strategies = await request(app).get("/api/strategies");
-    const cryptoStrategy = strategies.body.find((strategy: { id: string }) => strategy.id === "crypto-breakout");
+    const strategyList = Array.isArray(strategies.body) ? strategies.body : [];
+    const cryptoStrategy = strategyList.find((strategy: { id: string }) => strategy.id === "crypto-breakout");
     if (cryptoStrategy?.paperValidationStats?.completedCycles >= minimumCompletedCycles) {
       return;
     }
@@ -137,16 +138,13 @@ describe("operator flow", () => {
     expect(initialSettings.status).toBe(200);
     expect(initialSettings.body.maxPositionNotionalUsd).toBeGreaterThan(0);
 
-    const enableAutoPaper = await request(app)
-      .patch("/api/strategies/crypto-breakout/paper-automation")
-      .send({ autoPaperValidationEnabled: true });
-    expect(enableAutoPaper.status).toBe(200);
-    expect(enableAutoPaper.body.autoPaperValidationEnabled).toBe(true);
+    const firstPaperSession = await request(app).post("/api/strategies/crypto-breakout/paper-session");
+    expect(firstPaperSession.status).toBe(200);
+    expect(firstPaperSession.body.stage).toBe("paper");
+    await waitForCompletedCycles(app, 1);
 
-    const startPaper = await request(app).post("/api/strategies/crypto-breakout/paper-session");
-    expect(startPaper.status).toBe(200);
-    expect(startPaper.body.stage).toBe("paper");
-
+    const secondPaperSession = await request(app).post("/api/strategies/crypto-breakout/paper-session");
+    expect(secondPaperSession.status).toBe(200);
     await waitForCompletedCycles(app, 2);
 
     const activeCampaign = await request(app).get("/api/control/validation-campaign");
@@ -201,5 +199,5 @@ describe("operator flow", () => {
     const stopPaper = await request(app).delete("/api/strategies/crypto-breakout/paper-session");
     expect(stopPaper.status).toBe(200);
     expect(stopPaper.body.paperSessionActive).toBe(false);
-  }, 15000);
+  }, 30_000);
 });

@@ -290,7 +290,11 @@ export class NautilusAdapter implements EngineAdapter {
       return null;
     }
 
-    return parseRuntimeStatus(result.artifactPath);
+    try {
+      return await parseRuntimeStatus(result.artifactPath);
+    } catch {
+      return null;
+    }
   }
 
   private async readActiveRuntimeSession(strategyId: string): Promise<PaperSession | null> {

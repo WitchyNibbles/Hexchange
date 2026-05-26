@@ -20,7 +20,7 @@ import { EventStore } from "../audit/event-store";
 import { buildOrderNarrative, buildSignalNarrative } from "../audit/explanation-builder";
 import { AlpacaPaperBroker } from "../brokers/alpaca/alpaca-paper-broker";
 import { createEngineAdapter } from "../engine/engine-adapter";
-import type { BacktestResult, PaperSession } from "../engine/types";
+import type { BacktestResult, PaperSession, StrategyRuntimeStatus } from "../engine/types";
 import type { KrakenTicker } from "../market/kraken-public-market-data";
 import { KrakenPublicMarketData } from "../market/kraken-public-market-data";
 import { MarketDataService } from "../market/market-data-service";
@@ -102,6 +102,7 @@ export class HexchangeService {
   async initialize(): Promise<void> {
     await this.eventStore.ensureReady();
     await this.loadPersistedState();
+    await this.refreshRuntimeTelemetry({ discoverAllRuntimeSessions: true });
     const campaign = this.getValidationCampaignSummary();
     this.validationCampaignStarted = Boolean(campaign.firstObservedCycleAt);
     this.validationCampaignReady = campaign.campaignReady;
@@ -278,14 +279,36 @@ export class HexchangeService {
     };
   }
 
-  async refreshRuntimeTelemetry(): Promise<void> {
-    let stateChanged = false;
+  async refreshRuntimeTelemetry(
+    options: { discoverAllRuntimeSessions?: boolean } = {},
+  ): Promise<void> {
+    const strategyIdsToReconcile = options.discoverAllRuntimeSessions
+      ? this.strategies.map((strategy) => strategy.id)
+      : [
+          ...new Set([
+            ...this.managedSessions.keys(),
+            ...this.strategies.filter((strategy) => strategy.paperSessionActive).map((strategy) => strategy.id),
+          ]),
+        ];
+    const reconciledRuntime = await this.reconcileRuntimeSessions(strategyIdsToReconcile);
+    let stateChanged = reconciledRuntime.stateChanged;
+    const runtimeSessions = reconciledRuntime.runtimeSessions;
 
     for (const [strategyId] of this.managedSessions.entries()) {
       const strategy = this.findStrategy(strategyId);
-      const runtimeStatus = await this.engineAdapter.getStrategyStatus(strategyId);
+      const runtimeSnapshot = runtimeSessions.get(strategyId) ?? null;
+      const runtimeStatus =
+        runtimeSnapshot?.runtimeStatus ??
+        ({
+          strategyId,
+          state: "idle",
+          lastHeartbeatAt:
+            this.managedSessions.get(strategyId)?.lastHeartbeatAt ??
+            this.managedSessions.get(strategyId)?.startedAt ??
+            new Date().toISOString(),
+        } satisfies StrategyRuntimeStatus);
       const managedSession = this.managedSessions.get(strategyId) ?? null;
-      const runtimeSession = await this.engineAdapter.getPaperSession(strategyId);
+      const runtimeSession = runtimeSnapshot?.runtimeSession ?? null;
 
       if (managedSession && runtimeStatus.state !== "idle") {
         if (runtimeSession) {
@@ -354,7 +377,7 @@ export class HexchangeService {
           updatedStrategy.stage !== "halted" &&
           updatedStrategy.stage !== "retired"
         ) {
-          await this.startPaperSession(strategyId, { skipImmediateRefresh: true });
+          await this.startPaperSessionInternal(strategyId, { skipImmediateRefresh: true });
         }
         stateChanged = true;
       } else if (runtimeStatus.state === "idle") {
@@ -1052,6 +1075,54 @@ export class HexchangeService {
     this.seedEngineBacktests();
   }
 
+  private async reconcileRuntimeSessions(strategyIds: string[]): Promise<{
+    runtimeSessions: Map<string, { runtimeStatus: StrategyRuntimeStatus; runtimeSession: PaperSession | null }>;
+    stateChanged: boolean;
+  }> {
+    const runtimeSessions = new Map<
+      string,
+      { runtimeStatus: StrategyRuntimeStatus; runtimeSession: PaperSession | null }
+    >();
+    let stateChanged = false;
+
+    for (const strategyId of strategyIds) {
+      const strategy = this.findStrategy(strategyId);
+      const [runtimeStatus, runtimeSession] = await Promise.all([
+        this.engineAdapter.getStrategyStatus(strategyId),
+        this.engineAdapter.getPaperSession(strategyId),
+      ]);
+
+      runtimeSessions.set(strategyId, { runtimeStatus, runtimeSession });
+
+      if (!(runtimeStatus.state !== "idle" && runtimeSession)) {
+        continue;
+      }
+
+      const currentSession = this.managedSessions.get(strategyId) ?? null;
+      if (!this.sameManagedSession(currentSession, runtimeSession)) {
+        this.managedSessions.set(strategyId, runtimeSession);
+        stateChanged = true;
+      }
+
+      if (!strategy.paperSessionActive) {
+        this.updateStrategy(
+          strategy.stage === "paper" || strategy.stage === "candidate_live" || strategy.stage === "live"
+            ? {
+                ...strategy,
+                paperSessionActive: true,
+              }
+            : transitionStrategyState(strategy, "paper"),
+        );
+        stateChanged = true;
+      }
+    }
+
+    return {
+      runtimeSessions,
+      stateChanged,
+    };
+  }
+
   private async persistState(): Promise<void> {
     await this.runtimeStateStore.save({
       strategies: this.strategies,
@@ -1252,6 +1323,27 @@ export class HexchangeService {
   private isWithinStaleThreshold(timestamp: string, staleHours: number): boolean {
     const effectiveStaleHours = staleHours <= 0 ? 1 / 3600 : staleHours;
     return (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60) < effectiveStaleHours;
+  }
+
+  private sameManagedSession(left: PaperSession | null, right: PaperSession | null): boolean {
+    if (!(left && right)) {
+      return left === right;
+    }
+
+    return (
+      left.sessionId === right.sessionId &&
+      left.strategyId === right.strategyId &&
+      left.startedAt === right.startedAt &&
+      (left.lastHeartbeatAt ?? null) === (right.lastHeartbeatAt ?? null) &&
+      (left.processId ?? null) === (right.processId ?? null) &&
+      (left.runtimeSource ?? null) === (right.runtimeSource ?? null) &&
+      (left.executionMode ?? null) === (right.executionMode ?? null) &&
+      (left.phase ?? null) === (right.phase ?? null) &&
+      (left.currentPrice ?? null) === (right.currentPrice ?? null) &&
+      (left.referencePrice ?? null) === (right.referencePrice ?? null) &&
+      (left.entryTriggerPrice ?? null) === (right.entryTriggerPrice ?? null) &&
+      (left.entryDistanceUsd ?? null) === (right.entryDistanceUsd ?? null)
+    );
   }
 }
 
