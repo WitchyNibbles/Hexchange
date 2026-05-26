@@ -399,7 +399,7 @@ export class HexchangeService {
       (sum, strategy) => sum + this.buildPaperValidationStats(strategy.id).completedCycles,
       0,
     );
-    const firstObservedCycleAt = cryptoStrategies
+    const firstObservedCycleStartedAt = cryptoStrategies
       .flatMap((strategy) => this.buildPaperCycleHistory(strategy.id).map((cycle) => cycle.startedAt))
       .filter((value): value is string => Boolean(value))
       .sort()[0] ?? null;
@@ -409,18 +409,6 @@ export class HexchangeService {
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
-    const observedHours =
-      firstObservedCycleAt && lastCompletedCycleAt
-        ? Number(
-            (
-              (new Date(lastCompletedCycleAt).getTime() - new Date(firstObservedCycleAt).getTime()) /
-              (1000 * 60 * 60)
-            ).toFixed(1),
-          )
-        : 0;
-    const campaignReady =
-      observedHours >= this.validationCampaignTargets.observedHours &&
-      completedCycles >= this.validationCampaignTargets.completedCycles;
     const latestCryptoSessionHeartbeatAt =
       [...this.managedSessions.entries()]
         .filter(([strategyId]) => this.findStrategy(strategyId).market === "crypto")
@@ -428,11 +416,33 @@ export class HexchangeService {
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
+    const earliestActiveCryptoSessionStartedAt =
+      [...this.managedSessions.entries()]
+        .filter(([strategyId]) => this.findStrategy(strategyId).market === "crypto")
+        .map(([, session]) => session.startedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()[0] ?? null;
+    const firstObservedCycleAt =
+      [firstObservedCycleStartedAt, earliestActiveCryptoSessionStartedAt]
+        .filter((value): value is string => Boolean(value))
+        .sort()[0] ?? null;
     const latestProgressAt =
       [lastCompletedCycleAt, latestCryptoSessionHeartbeatAt, firstObservedCycleAt]
         .filter((value): value is string => Boolean(value))
         .sort()
         .at(-1) ?? null;
+    const observedHours =
+      firstObservedCycleAt && latestProgressAt
+        ? Number(
+            (
+              (new Date(latestProgressAt).getTime() - new Date(firstObservedCycleAt).getTime()) /
+              (1000 * 60 * 60)
+            ).toFixed(1),
+          )
+        : 0;
+    const campaignReady =
+      observedHours >= this.validationCampaignTargets.observedHours &&
+      completedCycles >= this.validationCampaignTargets.completedCycles;
     const hoursSinceLatestProgress =
       latestProgressAt
         ? (Date.now() - new Date(latestProgressAt).getTime()) / (1000 * 60 * 60)
@@ -450,6 +460,11 @@ export class HexchangeService {
 
       return this.isWithinStaleThreshold(lastHeartbeatAt, this.validationCampaignStaleHours);
     });
+    const waitingForConfirmedEntry =
+      hasHealthyActiveCryptoPaperSession &&
+      !cryptoStrategies.some((strategy) =>
+        this.trades.some((trade) => trade.strategyId === strategy.id),
+      );
     const stalled =
       !campaignReady &&
       Boolean(firstObservedCycleAt) &&
@@ -470,7 +485,9 @@ export class HexchangeService {
           ? "Kraken paper validation has not started yet."
           : status === "stalled"
             ? "Kraken paper validation looks stale. Restart or inspect the paper runtime."
-            : "Kraken paper validation is actively collecting forward evidence.";
+            : waitingForConfirmedEntry
+              ? "Kraken paper validation is active and waiting for a confirmed entry."
+              : "Kraken paper validation is actively collecting forward evidence.";
     const nextAction =
       status === "ready"
         ? "Review the Kraken paper evidence and decide whether to arm live trading."
@@ -478,7 +495,9 @@ export class HexchangeService {
           ? "Start a Kraken paper session to begin collecting forward evidence."
           : status === "stalled"
             ? "Inspect the paper runtime and restart Kraken paper validation."
-            : "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.";
+            : waitingForConfirmedEntry
+              ? "Keep Kraken paper validation running while the engine waits for a confirmed market entry."
+              : "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.";
 
     const readyCryptoStrategies = cryptoStrategies.filter((strategy) => {
       const lastBacktest = this.backtests.find((item) => item.strategyId === strategy.id) ?? null;
@@ -953,7 +972,10 @@ export class HexchangeService {
     if (paper) {
       return paper.market === "crypto"
         ? validationCampaign.status === "collecting"
-          ? `${paper.name} is running Kraken paper validation on ${paper.symbol}. Forward evidence is actively collecting.`
+          ? validationCampaign.summary ===
+            "Kraken paper validation is active and waiting for a confirmed entry."
+            ? `${paper.name} is waiting for a confirmed Kraken paper entry on ${paper.symbol}. Forward evidence is collecting.`
+            : `${paper.name} is running Kraken paper validation on ${paper.symbol}. Forward evidence is actively collecting.`
           : `${paper.name} is running Kraken paper validation on ${paper.symbol}.`
         : `${paper.name} is running in stock simulation mode on ${paper.symbol}.`;
     }

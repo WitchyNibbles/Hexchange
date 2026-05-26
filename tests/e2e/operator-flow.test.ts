@@ -183,16 +183,16 @@ describe("operator flow", () => {
     expect(kill.status).toBe(200);
     expect(kill.body.killSwitchEngaged).toBe(true);
 
+    const reset = await request(app).post("/api/control/kill-switch/reset");
+    expect(reset.status).toBe(200);
+    expect(reset.body.killSwitchEngaged).toBe(false);
+
     const updateSettings = await request(app)
       .patch("/api/control/settings")
       .send({ maxDailyLossPct: 4.25, liveRolloutCapUsd: 900 });
     expect(updateSettings.status).toBe(200);
     expect(updateSettings.body.maxDailyLossPct).toBe(4.25);
     expect(updateSettings.body.liveRolloutCapUsd).toBe(900);
-
-    const reset = await request(app).post("/api/control/kill-switch/reset");
-    expect(reset.status).toBe(200);
-    expect(reset.body.killSwitchEngaged).toBe(false);
 
     const finalReadiness = await request(app).get("/api/control/live-readiness");
     expect(finalReadiness.status).toBe(200);

@@ -113,6 +113,7 @@ afterEach(async () => {
   delete process.env.HEXCHANGE_VALIDATION_TARGET_HOURS;
   delete process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES;
   delete process.env.HEXCHANGE_VALIDATION_STALE_HOURS;
+  delete process.env.HEXCHANGE_CRYPTO_PAPER_CONFIRMED_ENTRY;
 });
 
 describe("hexchange service persistence", () => {
@@ -737,6 +738,41 @@ describe("hexchange service persistence", () => {
 
     expect(service.getSystemStatus().currentActivity).toBe(
       "BTC Lunar Breakout is running Kraken paper validation on BTCUSD. Forward evidence is actively collecting.",
+    );
+  }, 15_000);
+
+  it("treats a confirmed-entry paper worker as active validation before the first fill", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_CRYPTO_PAPER_CONFIRMED_ENTRY = "1";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await service.refreshRuntimeTelemetry();
+
+    const campaign = service.getValidationCampaignSummary();
+    const strategy = service.listStrategies().find((item) => item.id === "crypto-breakout");
+
+    expect(campaign).toEqual(
+      expect.objectContaining({
+        status: "collecting",
+        summary: "Kraken paper validation is active and waiting for a confirmed entry.",
+        nextAction:
+          "Keep Kraken paper validation running while the engine waits for a confirmed market entry.",
+        firstObservedCycleAt: expect.any(String),
+      }),
+    );
+    expect(strategy?.paperSessionActive).toBe(true);
+    expect(strategy?.paperValidationStats.completedCycles).toBe(0);
+    expect(service.getSystemStatus().currentActivity).toBe(
+      "BTC Lunar Breakout is waiting for a confirmed Kraken paper entry on BTCUSD. Forward evidence is collecting.",
     );
   }, 15_000);
 
