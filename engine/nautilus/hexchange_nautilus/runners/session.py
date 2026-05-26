@@ -26,10 +26,14 @@ HEARTBEAT_STALE_AFTER_SECONDS = 2.5
 KRAKEN_AUTH_CACHE_TTL_SECONDS = 30
 TEST_CYCLE_CLOSE_TICK = 3
 REAL_CYCLE_SCALE_TICK = 12
-REAL_CYCLE_TIMEOUT_TICK = 120
-REAL_CYCLE_SCALE_TARGET_MULTIPLIER = 1.003
-REAL_CYCLE_CLOSE_TARGET_MULTIPLIER = 1.006
-REAL_CYCLE_STOP_MULTIPLIER = 0.997
+REAL_CYCLE_SOFT_TIMEOUT_TICK = 180
+REAL_CYCLE_HARD_TIMEOUT_TICK = 300
+REAL_CYCLE_SCALE_TARGET_MULTIPLIER = 1.0018
+REAL_CYCLE_CLOSE_TARGET_MULTIPLIER = 1.0045
+REAL_CYCLE_STOP_MULTIPLIER = 0.9968
+REAL_CYCLE_PROTECTIVE_STOP_MULTIPLIER = 1.0003
+REAL_CYCLE_TRAILING_STOP_MULTIPLIER = 0.9988
+REAL_CYCLE_SOFT_TIMEOUT_PROFIT_MULTIPLIER = 1.0004
 
 
 def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
@@ -520,6 +524,8 @@ def _load_or_initialize_session_state(
         "initialQuantity": quantity,
         "remainingQuantity": quantity,
         "realizedPnlUsd": 0.0,
+        "entryTick": 0,
+        "highestPrice": entry_price,
         "expectedEdgeBps": seed["expectedEdgeBps"],
         "entryExplanation": seed["explanation"],
         "orders": [
@@ -582,12 +588,16 @@ def _advance_session_state(
     remaining_quantity = float(next_state["remainingQuantity"])
     phase = str(next_state.get("phase", "open"))
     fast_test_cycle = bool(_read_test_price_series())
+    entry_tick = int(next_state.get("entryTick", 0))
+    holding_ticks = max(int(next_state["tick"]) - entry_tick, 0)
+    highest_price = max(float(next_state.get("highestPrice", entry_price)), current_price)
+    next_state["highestPrice"] = highest_price
 
     if (
         phase == "open"
         and remaining_quantity > 0
         and current_price >= entry_price * (1.004 if fast_test_cycle else REAL_CYCLE_SCALE_TARGET_MULTIPLIER)
-        and (fast_test_cycle or int(next_state["tick"]) >= REAL_CYCLE_SCALE_TICK)
+        and (fast_test_cycle or holding_ticks >= REAL_CYCLE_SCALE_TICK)
     ):
         partial_quantity = round(float(next_state["initialQuantity"]) / 2, 6)
         _append_exit_fill(next_state, partial_quantity, current_price, updated_at, "Scaled half the Kraken paper leg.")
@@ -596,11 +606,32 @@ def _advance_session_state(
     remaining_quantity = float(next_state["remainingQuantity"])
     close_stop_multiplier = 0.995 if fast_test_cycle else REAL_CYCLE_STOP_MULTIPLIER
     close_target_multiplier = 1.008 if fast_test_cycle else REAL_CYCLE_CLOSE_TARGET_MULTIPLIER
-    close_timeout_tick = TEST_CYCLE_CLOSE_TICK if fast_test_cycle else REAL_CYCLE_TIMEOUT_TICK
+    close_soft_timeout_tick = TEST_CYCLE_CLOSE_TICK if fast_test_cycle else REAL_CYCLE_SOFT_TIMEOUT_TICK
+    close_hard_timeout_tick = TEST_CYCLE_CLOSE_TICK if fast_test_cycle else REAL_CYCLE_HARD_TIMEOUT_TICK
+    protective_stop_price = (
+        entry_price * 0.9995
+        if fast_test_cycle
+        else max(
+            entry_price * REAL_CYCLE_PROTECTIVE_STOP_MULTIPLIER,
+            highest_price * REAL_CYCLE_TRAILING_STOP_MULTIPLIER,
+        )
+    )
+    close_timeout_ready = (
+        holding_ticks >= TEST_CYCLE_CLOSE_TICK
+        if fast_test_cycle
+        else (
+            (
+                holding_ticks >= close_soft_timeout_tick
+                and current_price >= entry_price * REAL_CYCLE_SOFT_TIMEOUT_PROFIT_MULTIPLIER
+            )
+            or holding_ticks >= close_hard_timeout_tick
+        )
+    )
+
     if phase in {"open", "scaled"} and remaining_quantity > 0 and (
-        current_price <= entry_price * close_stop_multiplier
+        current_price <= (protective_stop_price if phase == "scaled" else entry_price * close_stop_multiplier)
         or current_price >= entry_price * close_target_multiplier
-        or int(next_state["tick"]) >= close_timeout_tick
+        or close_timeout_ready
     ):
         _append_exit_fill(next_state, remaining_quantity, current_price, updated_at, "Closed the Kraken paper leg.")
         phase = "closed"
