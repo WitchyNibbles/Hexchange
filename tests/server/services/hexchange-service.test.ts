@@ -539,6 +539,138 @@ describe("hexchange service persistence", () => {
     expect(service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout")).toEqual([]);
   }, 20_000);
 
+  it("excludes orphaned running paper cycles from validation history and stats", async () => {
+    const appDir = await createTempDir();
+    const service = await createHexchangeService(appDir);
+    const hackedService = service as unknown as {
+      trades: Array<{
+        id: string;
+        strategyId: string;
+        symbol: string;
+        market: "crypto";
+        venue: "kraken";
+        executionMode: "paper";
+        runtimeSource: "nautilus_trader";
+        sessionId: string;
+        side: "buy" | "sell";
+        quantity: number;
+        price: number;
+        feeUsd: number;
+        realizedPnlUsd: number;
+        expectedEdgeBps: number;
+        explanation: string;
+        createdAt: string;
+      }>;
+      managedSessions: Map<string, {
+        sessionId: string;
+        strategyId: string;
+        startedAt: string;
+        lastHeartbeatAt: string;
+        processId: number;
+        runtimeSource: "nautilus_trader";
+        executionMode: "kraken_ready";
+      }>;
+    };
+
+    hackedService.trades = [
+      {
+        id: "trade-complete-entry",
+        strategyId: "crypto-breakout",
+        symbol: "BTCUSD",
+        market: "crypto",
+        venue: "kraken",
+        executionMode: "paper",
+        runtimeSource: "nautilus_trader",
+        sessionId: "paper-complete",
+        side: "buy",
+        quantity: 0.021,
+        price: 76000,
+        feeUsd: 1.5,
+        realizedPnlUsd: 0,
+        expectedEdgeBps: 148,
+        explanation: "completed cycle entry",
+        createdAt: "2026-05-26T01:00:00.000Z",
+      },
+      {
+        id: "trade-complete-exit",
+        strategyId: "crypto-breakout",
+        symbol: "BTCUSD",
+        market: "crypto",
+        venue: "kraken",
+        executionMode: "paper",
+        runtimeSource: "nautilus_trader",
+        sessionId: "paper-complete",
+        side: "sell",
+        quantity: 0.021,
+        price: 76100,
+        feeUsd: 1.5,
+        realizedPnlUsd: 2.1,
+        expectedEdgeBps: 0,
+        explanation: "completed cycle exit",
+        createdAt: "2026-05-26T01:10:00.000Z",
+      },
+      {
+        id: "trade-orphan-entry",
+        strategyId: "crypto-breakout",
+        symbol: "BTCUSD",
+        market: "crypto",
+        venue: "kraken",
+        executionMode: "paper",
+        runtimeSource: "nautilus_trader",
+        sessionId: "paper-orphan",
+        side: "buy",
+        quantity: 0.021,
+        price: 76200,
+        feeUsd: 1.5,
+        realizedPnlUsd: 0,
+        expectedEdgeBps: 148,
+        explanation: "orphaned cycle entry",
+        createdAt: "2026-05-26T01:20:00.000Z",
+      },
+      {
+        id: "trade-active-entry",
+        strategyId: "crypto-breakout",
+        symbol: "BTCUSD",
+        market: "crypto",
+        venue: "kraken",
+        executionMode: "paper",
+        runtimeSource: "nautilus_trader",
+        sessionId: "paper-active",
+        side: "buy",
+        quantity: 0.021,
+        price: 76300,
+        feeUsd: 1.5,
+        realizedPnlUsd: 0,
+        expectedEdgeBps: 148,
+        explanation: "active cycle entry",
+        createdAt: "2026-05-26T01:30:00.000Z",
+      },
+    ];
+    hackedService.managedSessions = new Map([
+      [
+        "crypto-breakout",
+        {
+          sessionId: "paper-active",
+          strategyId: "crypto-breakout",
+          startedAt: "2026-05-26T01:30:00.000Z",
+          lastHeartbeatAt: "2026-05-26T01:35:00.000Z",
+          processId: 1234,
+          runtimeSource: "nautilus_trader",
+          executionMode: "kraken_ready",
+        },
+      ],
+    ]);
+
+    const strategy = service.listStrategies().find((item) => item.id === "crypto-breakout");
+
+    expect(strategy?.paperCycleHistory.map((cycle) => cycle.sessionId)).toEqual([
+      "paper-active",
+      "paper-complete",
+    ]);
+    expect(strategy?.paperValidationStats.cycles).toBe(2);
+    expect(strategy?.paperValidationStats.completedCycles).toBe(1);
+  });
+
   it("records validation campaign milestones as paper evidence begins and target is reached", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();

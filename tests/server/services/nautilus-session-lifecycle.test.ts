@@ -152,4 +152,37 @@ describe("nautilus session lifecycle", () => {
     expect(restartedSession?.processId).not.toBe(dummyProcess.pid);
     expect(existsSync(telemetryPath)).toBe(true);
   }, 15_000);
+
+  it("deduplicates concurrent paper-session starts for the same strategy", async () => {
+    const appDir = await createTempDir();
+    const service = await createHexchangeService(appDir);
+    const engineAdapter = (service as unknown as {
+      engineAdapter: {
+        startPaperSession(strategyId: string): Promise<{
+          sessionId: string;
+          strategyId: string;
+          startedAt: string;
+          runtimeSource: "synthetic";
+          executionMode: "simulated";
+        }>;
+      };
+    }).engineAdapter;
+    const originalStartPaperSession = engineAdapter.startPaperSession.bind(engineAdapter);
+    let startCalls = 0;
+
+    engineAdapter.startPaperSession = async (strategyId: string) => {
+      startCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return originalStartPaperSession(strategyId);
+    };
+
+    const [first, second] = await Promise.all([
+      service.startPaperSession("crypto-breakout"),
+      service.startPaperSession("crypto-breakout"),
+    ]);
+
+    expect(startCalls).toBe(1);
+    expect(first.paperSession?.sessionId).toBeTruthy();
+    expect(second.paperSession?.sessionId).toBe(first.paperSession?.sessionId);
+  });
 });

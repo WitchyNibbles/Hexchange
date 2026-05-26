@@ -63,6 +63,12 @@ export class NautilusAdapter implements EngineAdapter {
   }
 
   async startPaperSession(strategyId: string): Promise<PaperSession> {
+    const existingRuntimeSession = await this.readActiveRuntimeSession(strategyId);
+    if (existingRuntimeSession) {
+      this.sessions.set(strategyId, existingRuntimeSession);
+      return existingRuntimeSession;
+    }
+
     if (this.options.mode === "nautilus") {
       const result = await this.runner({
         command: "start-session",
@@ -108,6 +114,22 @@ export class NautilusAdapter implements EngineAdapter {
         return;
       }
     }
+
+    const runtimeStatus = await this.readRuntimeStatus();
+    const runtimeSession = runtimeStatus?.sessions.find((item) => item.sessionId === sessionId) ?? null;
+    if (!(runtimeSession?.strategyId && this.options.mode === "nautilus")) {
+      return;
+    }
+
+    await this.runner({
+      command: "stop-session",
+      payload: {
+        strategyId: runtimeSession.strategyId,
+        pythonPath: this.options.pythonPath,
+        projectDir: this.options.projectDir,
+        runsDir: this.options.runsDir,
+      },
+    });
   }
 
   async getOrders(strategyId: string): Promise<NormalizedOrder[]> {
@@ -260,6 +282,24 @@ export class NautilusAdapter implements EngineAdapter {
     }
 
     return parseRuntimeStatus(result.artifactPath);
+  }
+
+  private async readActiveRuntimeSession(strategyId: string): Promise<PaperSession | null> {
+    const runtimeStatus = await this.readRuntimeStatus();
+    const session = runtimeStatus?.sessions.find((item) => item.strategyId === strategyId && item.alive !== false) ?? null;
+    if (!(session?.sessionId && session.strategyId)) {
+      return null;
+    }
+
+    return {
+      sessionId: session.sessionId,
+      strategyId: session.strategyId,
+      startedAt: session.startedAt ?? session.lastHeartbeatAt ?? new Date().toISOString(),
+      lastHeartbeatAt: session.lastHeartbeatAt ?? session.startedAt ?? null,
+      processId: session.processId ?? null,
+      runtimeSource: session.runtimeSource ?? null,
+      executionMode: session.executionMode ?? null,
+    };
   }
 
   private async readSessionTelemetry(strategyId: string): Promise<PaperSessionTelemetry | null> {

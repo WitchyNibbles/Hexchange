@@ -80,6 +80,7 @@ export class HexchangeService {
   private trades: TradeLogEntry[] = [];
   private backtests: BacktestResult[] = [];
   private managedSessions = new Map<string, PaperSession>();
+  private sessionStartTasks = new Map<string, Promise<StrategySummary>>();
   private runtimeHeartbeat: NodeJS.Timeout | null = null;
   private runtimeHeartbeatRunning = false;
   private runtimeHeartbeatTask: Promise<void> | null = null;
@@ -657,6 +658,19 @@ export class HexchangeService {
   }
 
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
+    const inFlightStart = this.sessionStartTasks.get(strategyId);
+    if (inFlightStart) {
+      return inFlightStart;
+    }
+
+    const startTask = this.startPaperSessionInternal(strategyId).finally(() => {
+      this.sessionStartTasks.delete(strategyId);
+    });
+    this.sessionStartTasks.set(strategyId, startTask);
+    return startTask;
+  }
+
+  private async startPaperSessionInternal(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const existingSession = this.managedSessions.get(strategyId) ?? null;
 
@@ -1085,6 +1099,7 @@ export class HexchangeService {
 
   private buildPaperCycleHistory(strategyId: string): StrategySummary["paperCycleHistory"] {
     const strategyTrades = this.trades.filter((trade) => trade.strategyId === strategyId);
+    const activeSessionId = this.managedSessions.get(strategyId)?.sessionId ?? null;
     const cycles = new Map<string, TradeLogEntry[]>();
 
     for (const trade of strategyTrades) {
@@ -1094,7 +1109,7 @@ export class HexchangeService {
       cycles.set(cycleId, cycleTrades);
     }
 
-    return [...cycles.entries()]
+    const summarizedCycles = [...cycles.entries()]
       .map(([cycleId, cycleTrades]) => {
         const orderedTrades = [...cycleTrades].sort(
           (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
@@ -1121,7 +1136,26 @@ export class HexchangeService {
           startedAt: firstTrade?.createdAt ?? null,
           completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
         };
-      })
+      });
+    const latestInactiveRunningSessionId =
+      activeSessionId === null
+        ? summarizedCycles
+            .filter((cycle) => cycle.status === "running")
+            .sort((left, right) => {
+              const rightTime = new Date(right.startedAt ?? 0).getTime();
+              const leftTime = new Date(left.startedAt ?? 0).getTime();
+              return rightTime - leftTime;
+            })
+            .at(0)?.sessionId ?? null
+        : null;
+
+    return summarizedCycles
+      .filter(
+        (cycle) =>
+          cycle.status === "completed" ||
+          cycle.sessionId === activeSessionId ||
+          cycle.sessionId === latestInactiveRunningSessionId,
+      )
       .sort((left, right) => {
         const rightTime = new Date(right.completedAt ?? right.startedAt ?? 0).getTime();
         const leftTime = new Date(left.completedAt ?? left.startedAt ?? 0).getTime();

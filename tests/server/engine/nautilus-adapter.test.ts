@@ -157,4 +157,70 @@ describe("nautilus adapter", () => {
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("reuses an already-live runtime session instead of spawning a duplicate worker", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "hexchange-nautilus-adapter-"));
+    const runtimeStatusPath = path.join(tempDir, "runtime-status.json");
+    const runnerCalls: string[] = [];
+
+    await writeFile(
+      runtimeStatusPath,
+      JSON.stringify(
+        {
+          runtimeHealth: "ready",
+          nautilusInstalled: true,
+          nautilusVersion: "1.220.0",
+          venues: [],
+          sessions: [
+            {
+              sessionId: "paper-crypto-breakout-runtime",
+              strategyId: "crypto-breakout",
+              state: "paper",
+              startedAt: "2026-05-26T01:10:00.000Z",
+              lastHeartbeatAt: "2026-05-26T01:10:30.000Z",
+              processId: 4243,
+              alive: true,
+              runtimeSource: "nautilus_trader",
+              executionMode: "kraken_ready",
+            },
+          ],
+          updatedAt: "2026-05-26T01:10:30.000Z",
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const adapter = new NautilusAdapter({
+      mode: "nautilus",
+      pythonPath: "/usr/bin/python3",
+      projectDir: tempDir,
+      runsDir: tempDir,
+      runner: async (request) => {
+        runnerCalls.push(request.command);
+        return {
+          ok: true,
+          artifactPath: runtimeStatusPath,
+          sessionId: "paper-crypto-breakout-runtime",
+        };
+      },
+    });
+
+    try {
+      const session = await adapter.startPaperSession("crypto-breakout");
+      expect(session).toEqual({
+        sessionId: "paper-crypto-breakout-runtime",
+        strategyId: "crypto-breakout",
+        startedAt: "2026-05-26T01:10:00.000Z",
+        lastHeartbeatAt: "2026-05-26T01:10:30.000Z",
+        processId: 4243,
+        runtimeSource: "nautilus_trader",
+        executionMode: "kraken_ready",
+      });
+      expect(runnerCalls).toEqual(["status"]);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
