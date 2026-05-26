@@ -148,6 +148,13 @@ export class NautilusAdapter implements EngineAdapter {
           lastHeartbeatAt: session.lastHeartbeatAt ?? session.startedAt ?? new Date().toISOString(),
         };
       }
+
+      const priorSession = this.sessions.get(strategyId);
+      return {
+        strategyId,
+        state: "idle",
+        lastHeartbeatAt: priorSession?.lastHeartbeatAt ?? priorSession?.startedAt ?? new Date().toISOString(),
+      };
     }
 
     const session = this.sessions.get(strategyId);

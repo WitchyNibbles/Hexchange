@@ -273,6 +273,20 @@ export class HexchangeService {
 
     for (const [strategyId] of this.managedSessions.entries()) {
       const strategy = this.findStrategy(strategyId);
+      const runtimeStatus = await this.engineAdapter.getStrategyStatus(strategyId);
+      const managedSession = this.managedSessions.get(strategyId) ?? null;
+
+      if (managedSession && runtimeStatus.state !== "idle") {
+        const nextHeartbeatAt = runtimeStatus.lastHeartbeatAt ?? managedSession.lastHeartbeatAt ?? null;
+        if (managedSession.lastHeartbeatAt !== nextHeartbeatAt) {
+          this.managedSessions.set(strategyId, {
+            ...managedSession,
+            lastHeartbeatAt: nextHeartbeatAt,
+          });
+          stateChanged = true;
+        }
+      }
+
       const [orders, positions, trades] = await Promise.all([
         this.engineAdapter.getOrders(strategyId),
         this.engineAdapter.getPositions(strategyId),
@@ -326,6 +340,21 @@ export class HexchangeService {
         ) {
           await this.startPaperSession(strategyId);
         }
+        stateChanged = true;
+      } else if (runtimeStatus.state === "idle") {
+        this.managedSessions.delete(strategyId);
+        this.orders = this.orders.filter((item) => item.strategyId !== strategyId);
+        this.positions = this.positions.filter((item) => item.symbol !== strategy.symbol);
+        this.updateStrategy({
+          ...this.findStrategy(strategyId),
+          paperSessionActive: false,
+        });
+        await this.recordEvent({
+          kind: "paper_session",
+          title: `${strategy.name} paper session disconnected`,
+          body: `Session metadata for ${strategy.symbol} stopped receiving runtime heartbeats and was detached locally.`,
+          severity: "warning",
+        });
         stateChanged = true;
       }
     }
@@ -391,19 +420,41 @@ export class HexchangeService {
     const campaignReady =
       observedHours >= this.validationCampaignTargets.observedHours &&
       completedCycles >= this.validationCampaignTargets.completedCycles;
-    const hoursSinceLastCompletedCycle =
-      lastCompletedCycleAt
-        ? (Date.now() - new Date(lastCompletedCycleAt).getTime()) / (1000 * 60 * 60)
+    const latestCryptoSessionHeartbeatAt =
+      [...this.managedSessions.entries()]
+        .filter(([strategyId]) => this.findStrategy(strategyId).market === "crypto")
+        .map(([, session]) => session.lastHeartbeatAt ?? session.startedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+    const latestProgressAt =
+      [lastCompletedCycleAt, latestCryptoSessionHeartbeatAt, firstObservedCycleAt]
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+    const hoursSinceLatestProgress =
+      latestProgressAt
+        ? (Date.now() - new Date(latestProgressAt).getTime()) / (1000 * 60 * 60)
         : null;
-    const hasActiveCryptoPaperSession = this.strategies.some(
-      (strategy) => strategy.market === "crypto" && strategy.paperSessionActive,
-    );
+    const hasHealthyActiveCryptoPaperSession = this.strategies.some((strategy) => {
+      if (!(strategy.market === "crypto" && strategy.paperSessionActive)) {
+        return false;
+      }
+
+      const session = this.managedSessions.get(strategy.id);
+      const lastHeartbeatAt = session?.lastHeartbeatAt ?? session?.startedAt ?? null;
+      if (!lastHeartbeatAt) {
+        return false;
+      }
+
+      return this.isWithinStaleThreshold(lastHeartbeatAt, this.validationCampaignStaleHours);
+    });
     const stalled =
       !campaignReady &&
-      !hasActiveCryptoPaperSession &&
-      completedCycles > 0 &&
-      hoursSinceLastCompletedCycle !== null &&
-      hoursSinceLastCompletedCycle >= this.validationCampaignStaleHours;
+      Boolean(firstObservedCycleAt) &&
+      !hasHealthyActiveCryptoPaperSession &&
+      hoursSinceLatestProgress !== null &&
+      hoursSinceLatestProgress >= this.validationCampaignStaleHours;
     const status: ValidationCampaignSummary["status"] = campaignReady
       ? "ready"
       : !firstObservedCycleAt
@@ -1056,6 +1107,11 @@ export class HexchangeService {
         };
       }),
     );
+  }
+
+  private isWithinStaleThreshold(timestamp: string, staleHours: number): boolean {
+    const effectiveStaleHours = staleHours <= 0 ? 1 / 3600 : staleHours;
+    return (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60) < effectiveStaleHours;
   }
 }
 

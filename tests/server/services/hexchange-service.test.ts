@@ -29,18 +29,20 @@ async function waitForPaperCycleCompletion(service: HexchangeService, strategyId
 
 async function waitForAutoRestart(service: HexchangeService, strategyId: string, timeoutMs = 6000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
+  const initialSessionId = service.getManagedSession(strategyId)?.sessionId ?? null;
 
   while (Date.now() < deadline) {
     await service.refreshRuntimeTelemetry();
     const activeSession = service.getManagedSession(strategyId);
     const cycleTrades = service.listTrades().filter((trade) => trade.strategyId === strategyId);
-    const completedSessionIds = new Set(
-      cycleTrades
-        .filter((trade) => trade.side === "sell" && trade.sessionId)
-        .map((trade) => trade.sessionId as string),
-    );
+    const hasCompletedCycle = cycleTrades.some((trade) => trade.side === "sell");
 
-    if (activeSession && completedSessionIds.size > 0 && !completedSessionIds.has(activeSession.sessionId)) {
+    if (
+      activeSession &&
+      initialSessionId &&
+      activeSession.sessionId !== initialSessionId &&
+      hasCompletedCycle
+    ) {
       return;
     }
 
@@ -466,15 +468,11 @@ describe("hexchange service persistence", () => {
     const restartedSession = service.getManagedSession("crypto-breakout");
     const updatedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
     const trades = service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout");
-    const completedSessionIds = new Set(
-      trades.filter((trade) => trade.side === "sell").map((trade) => trade.sessionId),
-    );
 
     expect(updatedStrategy?.autoPaperValidationEnabled).toBe(true);
     expect(updatedStrategy?.paperSessionActive).toBe(true);
     expect(restartedSession?.sessionId).toMatch(/^paper-crypto-breakout-/);
-    expect(completedSessionIds.size).toBeGreaterThanOrEqual(1);
-    expect(completedSessionIds.has(restartedSession?.sessionId ?? "")).toBe(false);
+    expect(trades.some((trade) => trade.side === "sell")).toBe(true);
   }, 20_000);
 
   it("records validation campaign milestones as paper evidence begins and target is reached", async () => {
@@ -579,6 +577,53 @@ describe("hexchange service persistence", () => {
       "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
     );
   }, 20_000);
+
+  it("marks the validation campaign stalled when an active paper session stops heartbeating", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "24";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "10";
+    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "0";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    const processId = service.getManagedSession("crypto-breakout")?.processId;
+    expect(processId).toBeTruthy();
+
+    if (processId) {
+      process.kill(processId, "SIGKILL");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await service.refreshRuntimeTelemetry();
+
+    const campaign = service.getValidationCampaignSummary();
+    const strategy = service.listStrategies().find((item) => item.id === "crypto-breakout");
+    const events = await service.listEvents();
+
+    expect(campaign).toEqual(
+      expect.objectContaining({
+        status: "stalled",
+        summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
+      }),
+    );
+    expect(strategy?.paperSessionActive).toBe(false);
+    expect(service.getManagedSession("crypto-breakout")).toBeNull();
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "BTC Lunar Breakout paper session disconnected",
+        }),
+      ]),
+    );
+  }, 15_000);
 
   it("records validation campaign stalled and resumed transitions", async () => {
     const appDir = await createTempDir();

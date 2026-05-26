@@ -100,6 +100,8 @@ def runtime_status(runs_dir: str) -> str:
 
     degraded = not nautilus_installed
     for session_file in sorted(runs_path.glob("session-*.json")):
+        if session_file.name.endswith("-telemetry.json") or session_file.name.endswith("-state.json"):
+            continue
         parsed = _read_json(session_file)
         if not parsed:
             continue
