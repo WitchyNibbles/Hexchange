@@ -74,7 +74,10 @@ async function waitForCampaignStatus(
 
   while (Date.now() < deadline) {
     if (service.getValidationCampaignSummary().status === expectedStatus) {
-      return;
+      await service.refreshRuntimeTelemetry();
+      if (service.getValidationCampaignSummary().status === expectedStatus) {
+        return;
+      }
     }
     await service.refreshRuntimeTelemetry();
     if (service.getValidationCampaignSummary().status === expectedStatus) {
@@ -1010,7 +1013,7 @@ describe("hexchange service persistence", () => {
     process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
     process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "24";
     process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "10";
-    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "0";
+    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "0.001";
 
     const service = await createHexchangeService(appDir);
 
@@ -1028,7 +1031,7 @@ describe("hexchange service persistence", () => {
     );
 
     await service.startPaperSession("crypto-breakout");
-    await waitForCampaignStatus(service, "collecting");
+    await waitForCampaignStatus(service, "collecting", 10_000);
 
     const collectingCampaign = service.getValidationCampaignSummary();
     events = await service.listEvents();

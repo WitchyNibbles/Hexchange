@@ -398,9 +398,9 @@ export class HexchangeService {
       }
     }
 
+    await this.syncValidationCampaignMilestones();
     if (stateChanged) {
       await this.persistState();
-      await this.syncValidationCampaignMilestones();
     }
   }
 
