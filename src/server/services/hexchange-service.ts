@@ -505,16 +505,20 @@ export class HexchangeService {
       hoursSinceLatestProgress >= this.validationCampaignStaleHours;
     const status: ValidationCampaignSummary["status"] = campaignReady
       ? "ready"
-      : !firstObservedCycleAt
-        ? "idle"
-        : stalled
-          ? "stalled"
-          : "collecting";
+      : hasHealthyActiveCryptoPaperSession
+        ? "collecting"
+        : !firstObservedCycleAt
+          ? "idle"
+          : stalled
+            ? "stalled"
+            : "idle";
     const summary =
       status === "ready"
         ? "Forward validation target reached."
         : status === "idle"
-          ? "Kraken paper validation has not started yet."
+          ? firstObservedCycleAt
+            ? "Kraken paper validation is not currently running."
+            : "Kraken paper validation has not started yet."
           : status === "stalled"
             ? "Kraken paper validation looks stale. Restart or inspect the paper runtime."
             : waitingForConfirmedEntry
@@ -1266,24 +1270,11 @@ export class HexchangeService {
           completedAt: exitTrades.length > 0 ? latestTrade?.createdAt ?? null : null,
         };
       });
-    const latestInactiveRunningSessionId =
-      activeSessionId === null
-        ? summarizedCycles
-            .filter((cycle) => cycle.status === "running")
-            .sort((left, right) => {
-              const rightTime = new Date(right.startedAt ?? 0).getTime();
-              const leftTime = new Date(left.startedAt ?? 0).getTime();
-              return rightTime - leftTime;
-            })
-            .at(0)?.sessionId ?? null
-        : null;
-
     return summarizedCycles
       .filter(
         (cycle) =>
           cycle.status === "completed" ||
-          cycle.sessionId === activeSessionId ||
-          cycle.sessionId === latestInactiveRunningSessionId,
+          cycle.sessionId === activeSessionId,
       )
       .sort((left, right) => {
         const rightTime = new Date(right.completedAt ?? right.startedAt ?? 0).getTime();

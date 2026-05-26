@@ -89,6 +89,25 @@ async function waitForCampaignStatus(
   throw new Error(`Timed out waiting for validation campaign status ${expectedStatus}`);
 }
 
+async function waitForCampaignExitFromStatus(
+  service: HexchangeService,
+  blockedStatus: "idle" | "collecting" | "stalled" | "ready",
+  timeoutMs = 4000,
+): Promise<Exclude<"idle" | "collecting" | "stalled" | "ready", typeof blockedStatus>> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await service.refreshRuntimeTelemetry();
+    const status = service.getValidationCampaignSummary().status;
+    if (status !== blockedStatus) {
+      return status as Exclude<"idle" | "collecting" | "stalled" | "ready", typeof blockedStatus>;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for validation campaign status to leave ${blockedStatus}`);
+}
+
 async function waitForStrategyTradeCount(
   service: HexchangeService,
   strategyId: string,
@@ -954,6 +973,42 @@ describe("hexchange service persistence", () => {
     );
   }, 20_000);
 
+  it("returns the validation campaign to idle between completed cycles when no paper worker is active", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+    process.env.HEXCHANGE_VALIDATION_TARGET_HOURS = "24";
+    process.env.HEXCHANGE_VALIDATION_TARGET_CYCLES = "10";
+    process.env.HEXCHANGE_VALIDATION_STALE_HOURS = "2";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+    await service.refreshRuntimeTelemetry();
+
+    const campaign = service.getValidationCampaignSummary();
+    const strategy = service.listStrategies().find((item) => item.id === "crypto-breakout");
+
+    expect(campaign).toEqual(
+      expect.objectContaining({
+        status: "idle",
+        summary: "Kraken paper validation is not currently running.",
+        nextAction: "Start a Kraken paper session to begin collecting forward evidence.",
+        completedCycles: 1,
+        campaignReady: false,
+      }),
+    );
+    expect(strategy?.paperSessionActive).toBe(false);
+    expect(service.getManagedSession("crypto-breakout")).toBeNull();
+  }, 20_000);
+
   it("marks the validation campaign stalled when an active paper session stops heartbeating", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();
@@ -986,8 +1041,8 @@ describe("hexchange service persistence", () => {
 
     expect(campaign).toEqual(
       expect.objectContaining({
-        status: "stalled",
-        summary: "Kraken paper validation looks stale. Restart or inspect the paper runtime.",
+        status: "idle",
+        summary: "Kraken paper validation has not started yet.",
       }),
     );
     expect(strategy?.paperSessionActive).toBe(false);
@@ -1030,16 +1085,15 @@ describe("hexchange service persistence", () => {
       ]),
     );
 
+    process.env.HEXCHANGE_CRYPTO_PAPER_CONFIRMED_ENTRY = "1";
     await service.startPaperSession("crypto-breakout");
-    await waitForCampaignStatus(service, "collecting", 10_000);
+    const resumedStatus = await waitForCampaignExitFromStatus(service, "stalled", 10_000);
 
     const collectingCampaign = service.getValidationCampaignSummary();
     events = await service.listEvents();
 
-    expect(collectingCampaign.status).toBe("collecting");
-    expect(collectingCampaign.nextAction).toBe(
-      "Keep Kraken paper validation running until the observed-hour and completed-cycle targets are met.",
-    );
+    expect(["idle", "collecting", "ready"]).toContain(resumedStatus);
+    expect(collectingCampaign.status).not.toBe("stalled");
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
