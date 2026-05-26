@@ -180,6 +180,16 @@ export class NautilusAdapter implements EngineAdapter {
         };
       }
 
+      const directSession = await this.readDirectSessionArtifact(strategyId);
+      if (directSession) {
+        this.sessions.set(strategyId, directSession);
+        return {
+          strategyId,
+          state: "paper",
+          lastHeartbeatAt: directSession.lastHeartbeatAt ?? directSession.startedAt,
+        };
+      }
+
       const priorSession = this.sessions.get(strategyId);
       return {
         strategyId,
@@ -301,7 +311,7 @@ export class NautilusAdapter implements EngineAdapter {
     const runtimeStatus = await this.readRuntimeStatus();
     const session = runtimeStatus?.sessions.find((item) => item.strategyId === strategyId && item.alive !== false) ?? null;
     if (!(session?.sessionId && session.strategyId)) {
-      return null;
+      return this.readDirectSessionArtifact(strategyId);
     }
 
     return {
@@ -320,6 +330,47 @@ export class NautilusAdapter implements EngineAdapter {
         : {}),
       ...(typeof session.entryDistanceUsd === "number" ? { entryDistanceUsd: session.entryDistanceUsd } : {}),
     };
+  }
+
+  private async readDirectSessionArtifact(strategyId: string): Promise<PaperSession | null> {
+    if (!this.options.runsDir) {
+      return null;
+    }
+
+    const artifactPath = path.join(this.options.runsDir, `session-${strategyId}.json`);
+    if (!existsSync(artifactPath)) {
+      return null;
+    }
+
+    try {
+      const session = await parsePaperSession(artifactPath);
+      if (!this.sessionArtifactLooksActive(session)) {
+        return null;
+      }
+      return session;
+    } catch {
+      return null;
+    }
+  }
+
+  private sessionArtifactLooksActive(session: PaperSession): boolean {
+    if (!(typeof session.processId === "number" && session.processId > 0)) {
+      return false;
+    }
+
+    try {
+      process.kill(session.processId, 0);
+    } catch {
+      return false;
+    }
+
+    const heartbeatAt = session.lastHeartbeatAt ?? session.startedAt;
+    if (!heartbeatAt) {
+      return false;
+    }
+
+    const heartbeatAgeMs = Date.now() - new Date(heartbeatAt).getTime();
+    return Number.isFinite(heartbeatAgeMs) && heartbeatAgeMs < 5_000;
   }
 
   private async readSessionTelemetry(strategyId: string): Promise<PaperSessionTelemetry | null> {

@@ -223,4 +223,102 @@ describe("nautilus adapter", () => {
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("falls back to the direct live session artifact when runtime status lags behind", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "hexchange-nautilus-adapter-"));
+    const runtimeStatusPath = path.join(tempDir, "runtime-status.json");
+    const directSessionPath = path.join(tempDir, "session-crypto-breakout.json");
+
+    await writeFile(
+      runtimeStatusPath,
+      JSON.stringify(
+        {
+          runtimeHealth: "degraded",
+          nautilusInstalled: true,
+          nautilusVersion: "1.220.0",
+          venues: [],
+          sessions: [
+            {
+              sessionId: "paper-crypto-breakout-runtime",
+              strategyId: "crypto-breakout",
+              state: "stale",
+              startedAt: "2026-05-26T01:10:00.000Z",
+              lastHeartbeatAt: "2026-05-26T01:10:30.000Z",
+              processId: process.pid,
+              alive: false,
+              runtimeSource: "nautilus_trader",
+              executionMode: "kraken_ready",
+            },
+          ],
+          updatedAt: "2026-05-26T01:10:30.000Z",
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await writeFile(
+      directSessionPath,
+      JSON.stringify(
+        {
+          sessionId: "paper-crypto-breakout-runtime",
+          strategyId: "crypto-breakout",
+          startedAt: "2026-05-26T01:10:00.000Z",
+          lastHeartbeatAt: new Date().toISOString(),
+          processId: process.pid,
+          runtimeSource: "nautilus_trader",
+          executionMode: "kraken_ready",
+          state: "paper",
+          alive: true,
+          phase: "waiting_entry",
+          currentPrice: 76580.5,
+          referencePrice: 76580.4,
+          entryTriggerPrice: 76611.0,
+          entryDistanceUsd: 30.5,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const adapter = new NautilusAdapter({
+      mode: "nautilus",
+      pythonPath: "/usr/bin/python3",
+      projectDir: tempDir,
+      runsDir: tempDir,
+      runner: async (request) => ({
+        ok: true,
+        artifactPath: request.command === "status" ? runtimeStatusPath : directSessionPath,
+        sessionId: "paper-crypto-breakout-runtime",
+      }),
+    });
+
+    try {
+      const session = await adapter.getPaperSession("crypto-breakout");
+      const status = await adapter.getStrategyStatus("crypto-breakout");
+
+      expect(session).toEqual({
+        sessionId: "paper-crypto-breakout-runtime",
+        strategyId: "crypto-breakout",
+        startedAt: "2026-05-26T01:10:00.000Z",
+        lastHeartbeatAt: expect.any(String),
+        processId: process.pid,
+        runtimeSource: "nautilus_trader",
+        executionMode: "kraken_ready",
+        phase: "waiting_entry",
+        currentPrice: 76580.5,
+        referencePrice: 76580.4,
+        entryTriggerPrice: 76611,
+        entryDistanceUsd: 30.5,
+      });
+      expect(status).toEqual({
+        strategyId: "crypto-breakout",
+        state: "paper",
+        lastHeartbeatAt: expect.any(String),
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
