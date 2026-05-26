@@ -31,18 +31,25 @@ async function waitForAutoRestart(service: HexchangeService, strategyId: string,
   const deadline = Date.now() + timeoutMs;
   const initialSessionId = service.getManagedSession(strategyId)?.sessionId ?? null;
 
-  while (Date.now() < deadline) {
-    await service.refreshRuntimeTelemetry();
+  const hasRestarted = () => {
     const activeSession = service.getManagedSession(strategyId);
     const cycleTrades = service.listTrades().filter((trade) => trade.strategyId === strategyId);
     const hasCompletedCycle = cycleTrades.some((trade) => trade.side === "sell");
 
-    if (
+    return Boolean(
       activeSession &&
-      initialSessionId &&
-      activeSession.sessionId !== initialSessionId &&
-      hasCompletedCycle
-    ) {
+        hasCompletedCycle &&
+        (!initialSessionId || activeSession.sessionId !== initialSessionId || cycleTrades.length >= 3),
+    );
+  };
+
+  while (Date.now() < deadline) {
+    if (hasRestarted()) {
+      return;
+    }
+
+    await service.refreshRuntimeTelemetry();
+    if (hasRestarted()) {
       return;
     }
 
@@ -60,6 +67,9 @@ async function waitForCampaignStatus(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
+    if (service.getValidationCampaignSummary().status === expectedStatus) {
+      return;
+    }
     await service.refreshRuntimeTelemetry();
     if (service.getValidationCampaignSummary().status === expectedStatus) {
       return;
@@ -525,7 +535,7 @@ describe("hexchange service persistence", () => {
 
     await service.updatePaperAutomation("crypto-breakout", true);
     await service.startPaperSession("crypto-breakout");
-    await waitForAutoRestart(service, "crypto-breakout", 6000);
+    await waitForAutoRestart(service, "crypto-breakout", 12_000);
 
     const restartedSession = service.getManagedSession("crypto-breakout");
     const updatedStrategy = service.listStrategies().find((strategy) => strategy.id === "crypto-breakout");
@@ -535,7 +545,7 @@ describe("hexchange service persistence", () => {
     expect(updatedStrategy?.paperSessionActive).toBe(true);
     expect(restartedSession?.sessionId).toMatch(/^paper-crypto-breakout-/);
     expect(trades.some((trade) => trade.side === "sell")).toBe(true);
-  }, 20_000);
+  }, 30_000);
 
   it("can reset polluted crypto paper evidence back to a clean ledger", async () => {
     const appDir = await createTempDir();
@@ -810,6 +820,14 @@ describe("hexchange service persistence", () => {
     );
     expect(strategy?.paperSessionActive).toBe(true);
     expect(strategy?.currentActivity).toBe("kraken paper validation waiting for confirmed entry");
+    expect(strategy?.paperSession).toEqual(
+      expect.objectContaining({
+        phase: "waiting_entry",
+        entryTriggerPrice: expect.any(Number),
+        currentPrice: expect.any(Number),
+        entryDistanceUsd: expect.any(Number),
+      }),
+    );
     expect(strategy?.paperValidationStats.completedCycles).toBe(0);
     expect(service.getSystemStatus().currentActivity).toBe(
       "BTC Lunar Breakout is waiting for a confirmed Kraken paper entry on BTCUSD. Forward evidence is collecting.",

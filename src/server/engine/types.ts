@@ -27,6 +27,11 @@ export interface PaperSession {
   processId?: number | null;
   runtimeSource?: "synthetic" | "nautilus_trader" | null;
   executionMode?: "simulated" | "kraken_ready" | "ib_ready" | "dual_venue_ready" | null;
+  phase?: "waiting_entry" | "open" | "scaled" | "closed" | "stopped" | null;
+  currentPrice?: number | null;
+  referencePrice?: number | null;
+  entryTriggerPrice?: number | null;
+  entryDistanceUsd?: number | null;
 }
 
 export interface PaperSessionTelemetry {
@@ -64,6 +69,7 @@ export interface EngineAdapter {
   runBacktest(request: BacktestRequest): Promise<BacktestResult>;
   startPaperSession(strategyId: string): Promise<PaperSession>;
   stopSession(sessionId: string): Promise<void>;
+  getPaperSession(strategyId: string): Promise<PaperSession | null>;
   getOrders(strategyId: string): Promise<NormalizedOrder[]>;
   getPositions(strategyId: string): Promise<PositionSnapshot[]>;
   getTrades(strategyId: string): Promise<TradeLogEntry[]>;

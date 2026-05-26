@@ -56,6 +56,10 @@ export class LeanAdapter implements EngineAdapter {
     }
   }
 
+  async getPaperSession(strategyId: string): Promise<PaperSession | null> {
+    return this.sessions.get(strategyId) ?? null;
+  }
+
   async getOrders(strategyId: string): Promise<NormalizedOrder[]> {
     return this.orders.get(strategyId) ?? [];
   }

@@ -132,6 +132,15 @@ export class NautilusAdapter implements EngineAdapter {
     });
   }
 
+  async getPaperSession(strategyId: string): Promise<PaperSession | null> {
+    const runtimeSession = await this.readActiveRuntimeSession(strategyId);
+    if (runtimeSession) {
+      this.sessions.set(strategyId, runtimeSession);
+      return runtimeSession;
+    }
+    return this.sessions.get(strategyId) ?? null;
+  }
+
   async getOrders(strategyId: string): Promise<NormalizedOrder[]> {
     const telemetry = await this.readSessionTelemetry(strategyId);
     if (telemetry) {
@@ -299,6 +308,13 @@ export class NautilusAdapter implements EngineAdapter {
       processId: session.processId ?? null,
       runtimeSource: session.runtimeSource ?? null,
       executionMode: session.executionMode ?? null,
+      ...(session.phase ? { phase: session.phase } : {}),
+      ...(typeof session.currentPrice === "number" ? { currentPrice: session.currentPrice } : {}),
+      ...(typeof session.referencePrice === "number" ? { referencePrice: session.referencePrice } : {}),
+      ...(typeof session.entryTriggerPrice === "number"
+        ? { entryTriggerPrice: session.entryTriggerPrice }
+        : {}),
+      ...(typeof session.entryDistanceUsd === "number" ? { entryDistanceUsd: session.entryDistanceUsd } : {}),
     };
   }
 

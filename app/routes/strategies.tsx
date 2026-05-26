@@ -131,6 +131,17 @@ export function StrategiesRoute() {
                   {strategy.paperSession.lastHeartbeatAt ?? strategy.paperSession.startedAt} · mode{" "}
                   {strategy.paperSession.executionMode ?? "simulated"}
                 </p>
+                {strategy.paperSession.phase === "waiting_entry" &&
+                typeof strategy.paperSession.entryTriggerPrice === "number" &&
+                typeof strategy.paperSession.currentPrice === "number" ? (
+                  <p>
+                    waiting for confirmed entry above ${strategy.paperSession.entryTriggerPrice.toFixed(1)} · current $
+                    {strategy.paperSession.currentPrice.toFixed(1)}
+                    {typeof strategy.paperSession.entryDistanceUsd === "number"
+                      ? ` · +$${strategy.paperSession.entryDistanceUsd.toFixed(1)} to trigger`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
             ) : null}
             <div className="strategy-actions">

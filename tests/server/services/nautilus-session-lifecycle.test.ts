@@ -153,6 +153,68 @@ describe("nautilus session lifecycle", () => {
     expect(existsSync(telemetryPath)).toBe(true);
   }, 15_000);
 
+  it("restarts a managed session if the existing worker heartbeat is stale", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = existsSync(bundledPython) ? bundledPython : "python3";
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    const dummyProcess = spawn("node", ["-e", "setTimeout(() => {}, 30000)"], {
+      stdio: "ignore",
+      detached: true,
+    });
+    backgroundProcesses.push(dummyProcess);
+    const sessionPath = path.join(runsDir, "session-crypto-breakout.json");
+    const telemetryPath = path.join(runsDir, "session-crypto-breakout-telemetry.json");
+
+    await writeFile(
+      sessionPath,
+      JSON.stringify(
+        {
+          sessionId: "paper-crypto-breakout-stale",
+          strategyId: "crypto-breakout",
+          startedAt: "2026-05-25T17:00:00.000Z",
+          lastHeartbeatAt: "2026-05-25T17:00:01.000Z",
+          processId: dummyProcess.pid,
+          runtimeSource: "nautilus_trader",
+          executionMode: "kraken_ready",
+          state: "paper",
+          alive: true,
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await writeFile(
+      telemetryPath,
+      JSON.stringify(
+        {
+          sessionId: "paper-crypto-breakout-stale",
+          strategyId: "crypto-breakout",
+          updatedAt: "2026-05-25T17:00:01.000Z",
+          orders: [],
+          positions: [],
+          trades: [],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const service = await createHexchangeService(appDir);
+
+    await service.startPaperSession("crypto-breakout");
+    const restartedSession = service.getManagedSession("crypto-breakout");
+
+    expect(restartedSession?.processId).not.toBe(dummyProcess.pid);
+    expect(restartedSession?.sessionId).not.toBe("paper-crypto-breakout-stale");
+  }, 15_000);
+
   it("deduplicates concurrent paper-session starts for the same strategy", async () => {
     const appDir = await createTempDir();
     const service = await createHexchangeService(appDir);

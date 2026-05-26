@@ -20,6 +20,11 @@ export interface RuntimeStatusArtifact {
     alive?: boolean;
     runtimeSource?: "synthetic" | "nautilus_trader" | null;
     executionMode?: "simulated" | "kraken_ready" | "ib_ready" | "dual_venue_ready" | null;
+    phase?: "waiting_entry" | "open" | "scaled" | "closed" | "stopped" | null;
+    currentPrice?: number | null;
+    referencePrice?: number | null;
+    entryTriggerPrice?: number | null;
+    entryDistanceUsd?: number | null;
   }>;
   updatedAt: string;
 }

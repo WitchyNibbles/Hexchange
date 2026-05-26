@@ -39,6 +39,11 @@ describe("strategy cockpit", () => {
             processId: 4242,
             runtimeSource: "nautilus_trader",
             executionMode: "kraken_ready",
+            phase: "waiting_entry",
+            currentPrice: 220.1,
+            referencePrice: 220.0,
+            entryTriggerPrice: 220.3,
+            entryDistanceUsd: 0.2,
           },
           deploymentMode: "simulation_only",
           operatorWarning: "Simulation only: stock execution is disabled until a real stock broker is added.",
@@ -168,6 +173,7 @@ describe("strategy cockpit", () => {
     expect(screen.getByText(/^paper-stock-momentum · pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/pid 4242/i)).toBeInTheDocument();
     expect(screen.getByText(/mode kraken_ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/waiting for confirmed entry above \$220.3 · current \$220.1 · \+\$0.2 to trigger/i)).toBeInTheDocument();
     expect(screen.getByText(/last paper cycle/i)).toBeInTheDocument();
     expect(screen.getByText(/^completed · pnl \$8.66 · return 0.64% · exits 2 · 2026-05-24T08:40:00.000Z$/i)).toBeInTheDocument();
     expect(screen.getByText(/paper cycle ledger/i)).toBeInTheDocument();

@@ -285,15 +285,21 @@ export class HexchangeService {
       const strategy = this.findStrategy(strategyId);
       const runtimeStatus = await this.engineAdapter.getStrategyStatus(strategyId);
       const managedSession = this.managedSessions.get(strategyId) ?? null;
+      const runtimeSession = await this.engineAdapter.getPaperSession(strategyId);
 
       if (managedSession && runtimeStatus.state !== "idle") {
-        const nextHeartbeatAt = runtimeStatus.lastHeartbeatAt ?? managedSession.lastHeartbeatAt ?? null;
-        if (managedSession.lastHeartbeatAt !== nextHeartbeatAt) {
-          this.managedSessions.set(strategyId, {
-            ...managedSession,
-            lastHeartbeatAt: nextHeartbeatAt,
-          });
+        if (runtimeSession) {
+          this.managedSessions.set(strategyId, runtimeSession);
           stateChanged = true;
+        } else {
+          const nextHeartbeatAt = runtimeStatus.lastHeartbeatAt ?? managedSession.lastHeartbeatAt ?? null;
+          if (managedSession.lastHeartbeatAt !== nextHeartbeatAt) {
+            this.managedSessions.set(strategyId, {
+              ...managedSession,
+              lastHeartbeatAt: nextHeartbeatAt,
+            });
+            stateChanged = true;
+          }
         }
       }
 
@@ -348,7 +354,7 @@ export class HexchangeService {
           updatedStrategy.stage !== "halted" &&
           updatedStrategy.stage !== "retired"
         ) {
-          await this.startPaperSession(strategyId);
+          await this.startPaperSession(strategyId, { skipImmediateRefresh: true });
         }
         stateChanged = true;
       } else if (runtimeStatus.state === "idle") {
@@ -695,20 +701,26 @@ export class HexchangeService {
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
-  async startPaperSession(strategyId: string): Promise<StrategySummary> {
+  async startPaperSession(
+    strategyId: string,
+    options: { skipImmediateRefresh?: boolean } = {},
+  ): Promise<StrategySummary> {
     const inFlightStart = this.sessionStartTasks.get(strategyId);
     if (inFlightStart) {
       return inFlightStart;
     }
 
-    const startTask = this.startPaperSessionInternal(strategyId).finally(() => {
+    const startTask = this.startPaperSessionInternal(strategyId, options).finally(() => {
       this.sessionStartTasks.delete(strategyId);
     });
     this.sessionStartTasks.set(strategyId, startTask);
     return startTask;
   }
 
-  private async startPaperSessionInternal(strategyId: string): Promise<StrategySummary> {
+  private async startPaperSessionInternal(
+    strategyId: string,
+    options: { skipImmediateRefresh?: boolean } = {},
+  ): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const existingSession = this.managedSessions.get(strategyId) ?? null;
 
@@ -724,7 +736,9 @@ export class HexchangeService {
       if (existingSession.runtimeSource === "nautilus_trader" && !hasRuntimeTelemetry) {
         await this.stopManagedSession(existingSession.sessionId);
       } else {
-        await this.refreshRuntimeTelemetry();
+        if (!options.skipImmediateRefresh) {
+          await this.refreshRuntimeTelemetry();
+        }
         return this.listStrategies().find((item) => item.id === strategyId)!;
       }
     }
@@ -778,7 +792,9 @@ export class HexchangeService {
       }
     }
 
-    await this.refreshRuntimeTelemetry();
+    if (!options.skipImmediateRefresh) {
+      await this.refreshRuntimeTelemetry();
+    }
 
     await this.persistState();
 

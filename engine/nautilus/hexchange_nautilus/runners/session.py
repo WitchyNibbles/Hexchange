@@ -41,9 +41,15 @@ def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
     artifact_path = _session_artifact_path(strategy_id, runs_path)
     telemetry_path = _session_telemetry_artifact_path(strategy_id, runs_path)
     existing = _read_json(artifact_path)
-    if existing and _is_process_alive(existing.get("processId")) and existing.get("state") in {"paper", "live"}:
+    if (
+        existing
+        and _is_process_alive(existing.get("processId"))
+        and existing.get("state") in {"paper", "live"}
+        and not _heartbeat_stale(existing.get("lastHeartbeatAt"))
+    ):
         if telemetry_path.exists():
             return str(existing.get("sessionId") or f"paper-{strategy_id}"), str(artifact_path)
+    elif existing and _is_process_alive(existing.get("processId")):
         _terminate_process(int(existing.get("processId")))
 
     runs_path.mkdir(parents=True, exist_ok=True)
@@ -138,6 +144,11 @@ def runtime_status(runs_dir: str) -> str:
                 "processId": process_id,
                 "runtimeSource": parsed.get("runtimeSource"),
                 "executionMode": parsed.get("executionMode"),
+                "phase": parsed.get("phase"),
+                "currentPrice": parsed.get("currentPrice"),
+                "referencePrice": parsed.get("referencePrice"),
+                "entryTriggerPrice": parsed.get("entryTriggerPrice"),
+                "entryDistanceUsd": parsed.get("entryDistanceUsd"),
                 "alive": alive and not stale,
             }
         )
@@ -183,17 +194,17 @@ def session_worker(strategy_id: str, runs_dir: str, session_id: str) -> None:
         write_json_artifact(state_path, state)
         write_json_artifact(
             artifact_path,
-            {
-                "sessionId": session_id,
-                "strategyId": strategy_id,
-                "startedAt": started_at,
-                "lastHeartbeatAt": now,
-                "processId": process_id,
-                "runtimeSource": runtime_source,
-                "executionMode": execution_mode,
-                "state": "paper",
-                "alive": True,
-            },
+            _build_session_artifact_payload(
+                state=state,
+                session_id=session_id,
+                strategy_id=strategy_id,
+                started_at=started_at,
+                last_heartbeat_at=now,
+                process_id=process_id,
+                runtime_source=runtime_source,
+                execution_mode=execution_mode,
+                alive=True,
+            ),
         )
         telemetry_path = _session_telemetry_artifact_path(strategy_id, runs_path)
         write_json_artifact(
@@ -211,18 +222,18 @@ def session_worker(strategy_id: str, runs_dir: str, session_id: str) -> None:
 
     write_json_artifact(
         artifact_path,
-        {
-            "sessionId": session_id,
-            "strategyId": strategy_id,
-            "startedAt": started_at,
-            "lastHeartbeatAt": datetime.now(timezone.utc).isoformat(),
-            "processId": process_id,
-            "runtimeSource": runtime_source,
-            "executionMode": execution_mode,
-            "state": "stopped",
-            "alive": False,
-            "stoppedAt": datetime.now(timezone.utc).isoformat(),
-        },
+        _build_session_artifact_payload(
+            state=state,
+            session_id=session_id,
+            strategy_id=strategy_id,
+            started_at=started_at,
+            last_heartbeat_at=datetime.now(timezone.utc).isoformat(),
+            process_id=process_id,
+            runtime_source=runtime_source,
+            execution_mode=execution_mode,
+            alive=False,
+            stopped_at=datetime.now(timezone.utc).isoformat(),
+        ),
     )
 
 
@@ -496,6 +507,40 @@ def _build_session_telemetry(
     }
 
 
+def _build_session_artifact_payload(
+    *,
+    state: dict[str, Any],
+    session_id: str,
+    strategy_id: str,
+    started_at: str,
+    last_heartbeat_at: str,
+    process_id: int | None,
+    runtime_source: str,
+    execution_mode: str,
+    alive: bool,
+    stopped_at: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "sessionId": session_id,
+        "strategyId": strategy_id,
+        "startedAt": started_at,
+        "lastHeartbeatAt": last_heartbeat_at,
+        "processId": process_id,
+        "runtimeSource": runtime_source,
+        "executionMode": execution_mode,
+        "state": "paper" if alive else "stopped",
+        "alive": alive,
+        "phase": state.get("phase"),
+        "currentPrice": state.get("currentPrice"),
+        "referencePrice": state.get("referencePrice"),
+        "entryTriggerPrice": state.get("entryTriggerPrice"),
+        "entryDistanceUsd": state.get("entryDistanceUsd"),
+    }
+    if stopped_at:
+        payload["stoppedAt"] = stopped_at
+    return payload
+
+
 def _load_or_initialize_session_state(
     strategy_id: str,
     runs_path: Path,
@@ -512,6 +557,7 @@ def _load_or_initialize_session_state(
     entry_fee = round(entry_price * quantity * 0.001, 2)
 
     if strategy_id == "crypto-breakout" and _crypto_breakout_requires_confirmed_entry():
+        trigger_price = round(entry_price * 1.0004, 1)
         return {
             "strategyId": strategy_id,
             "sessionId": session_id,
@@ -531,6 +577,8 @@ def _load_or_initialize_session_state(
             "highestPrice": entry_price,
             "referenceTick": 0,
             "priceWindow": [entry_price],
+            "entryTriggerPrice": trigger_price,
+            "entryDistanceUsd": round(trigger_price - entry_price, 1),
             "expectedEdgeBps": seed["expectedEdgeBps"],
             "entryExplanation": seed["explanation"],
             "orders": [],
@@ -619,6 +667,9 @@ def _advance_session_state(
         next_state["priceWindow"] = price_window
         reference_price = float(next_state.get("referencePrice", current_price))
         breakout_trigger = max(price_window[:-1], default=reference_price)
+        entry_trigger_price = max(reference_price * 1.0004, breakout_trigger * 1.00035)
+        next_state["entryTriggerPrice"] = round(entry_trigger_price, 1)
+        next_state["entryDistanceUsd"] = round(max(entry_trigger_price - current_price, 0.0), 1)
         confirmation_ready = (
             len(price_window) >= 4
             and current_price >= reference_price * 1.0004
@@ -633,6 +684,8 @@ def _advance_session_state(
             next_state["referencePrice"] = current_price
             next_state["referenceTick"] = int(next_state["tick"])
             next_state["priceWindow"] = [current_price]
+            next_state["entryTriggerPrice"] = round(current_price * 1.0004, 1)
+            next_state["entryDistanceUsd"] = round(max(current_price * 1.0004 - current_price, 0.0), 1)
         return next_state
 
     entry_price = float(next_state["entryPrice"])
@@ -761,6 +814,8 @@ def _append_entry_fill(
     state["remainingQuantity"] = quantity
     state["entryTick"] = int(state.get("tick", 0))
     state["highestPrice"] = price
+    state["entryTriggerPrice"] = None
+    state["entryDistanceUsd"] = None
     state["orders"] = [
         {
             "id": f"runtime-order-entry-{state['strategyId']}",
