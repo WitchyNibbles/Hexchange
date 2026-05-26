@@ -770,6 +770,7 @@ describe("hexchange service persistence", () => {
       }),
     );
     expect(strategy?.paperSessionActive).toBe(true);
+    expect(strategy?.currentActivity).toBe("kraken paper validation waiting for confirmed entry");
     expect(strategy?.paperValidationStats.completedCycles).toBe(0);
     expect(service.getSystemStatus().currentActivity).toBe(
       "BTC Lunar Breakout is waiting for a confirmed Kraken paper entry on BTCUSD. Forward evidence is collecting.",

@@ -176,7 +176,10 @@ export class HexchangeService {
             ? "autonomous live execution armed"
             : strategy.paperSessionActive
               ? strategy.market === "crypto"
-                ? "kraken paper validation active"
+                ? validationCampaign.summary ===
+                  "Kraken paper validation is active and waiting for a confirmed entry."
+                  ? "kraken paper validation waiting for confirmed entry"
+                  : "kraken paper validation active"
                 : "simulation session active"
               : "awaiting operator action",
         signal: strategy.signal,
