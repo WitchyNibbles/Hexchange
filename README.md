@@ -78,4 +78,4 @@ Hexchange is built around validation rather than hype:
 - no guarantee language
 - profit always shown with exposure and drawdown context
 
-See [runtime-overview.md](/home/eimi/projects/hexchange/docs/architecture/runtime-overview.md), [paper-to-live-checklist.md](/home/eimi/projects/hexchange/docs/qa/paper-to-live-checklist.md), and [venue-readiness.md](/home/eimi/projects/hexchange/docs/qa/venue-readiness.md).
+See [runtime-overview.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/docs/architecture/runtime-overview.md), [paper-to-live-checklist.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/docs/qa/paper-to-live-checklist.md), [venue-readiness.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/docs/qa/venue-readiness.md), and [validation-campaign-runbook.md](/home/eimi/projects/hexchange/.worktrees/nautilus-ib-kraken/docs/qa/validation-campaign-runbook.md).
