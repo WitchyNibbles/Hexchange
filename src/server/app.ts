@@ -72,6 +72,10 @@ export function createServerApp(service: HexchangeService): Express {
     );
   }));
 
+  app.post("/api/strategies/:strategyId/reset-paper-evidence", asyncRoute(async (request, response) => {
+    response.json(await service.resetPaperEvidence(getRouteParam(request.params.strategyId)));
+  }));
+
   app.get("/api/trades", asyncRoute(async (_request, response) => {
     await service.refreshRuntimeTelemetry();
     response.json(service.listTrades());

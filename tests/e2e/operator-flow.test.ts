@@ -1,6 +1,6 @@
 import request from "supertest";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -27,6 +27,34 @@ async function waitForCompletedCycles(
   throw new Error(`Timed out waiting for ${minimumCompletedCycles} completed crypto paper cycles`);
 }
 
+async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
+  let entries: string[] = [];
+  try {
+    entries = await readdir(rootDir);
+  } catch {
+    return;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.startsWith("session-") && entry.endsWith(".json"))
+      .map(async (entry) => {
+        try {
+          const parsed = JSON.parse(await readFile(path.join(rootDir, entry), "utf8")) as { processId?: number };
+          if (typeof parsed.processId === "number" && parsed.processId > 0) {
+            try {
+              process.kill(parsed.processId, "SIGKILL");
+            } catch {
+              // Worker already exited.
+            }
+          }
+        } catch {
+          // Ignore malformed artifacts during teardown.
+        }
+      }),
+  );
+}
+
 describe("operator flow", () => {
   let app: ReturnType<typeof createServerApp>;
   let service: Awaited<ReturnType<typeof createHexchangeService>>;
@@ -50,6 +78,7 @@ describe("operator flow", () => {
 
   afterAll(async () => {
     await service.stopRuntimeHeartbeat();
+    await terminateRuntimeWorkers(runsDir);
     delete process.env.HEXCHANGE_APP_DIR;
     delete process.env.HEXCHANGE_ENGINE_MODE;
     delete process.env.HEXCHANGE_NAUTILUS_PYTHON;

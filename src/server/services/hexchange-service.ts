@@ -616,6 +616,46 @@ export class HexchangeService {
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
+  async resetPaperEvidence(strategyId: string): Promise<StrategySummary> {
+    const strategy = this.findStrategy(strategyId);
+    if (strategy.market !== "crypto") {
+      throw new Error("Paper evidence reset is only available for crypto strategies.");
+    }
+
+    const session = this.managedSessions.get(strategyId);
+    if (session) {
+      await this.stopManagedSession(session.sessionId);
+    }
+
+    const baseline = this.buildBaselineStrategy(strategyId);
+    const lastBacktest = this.backtests.find((item) => item.strategyId === strategyId) ?? null;
+
+    this.orders = this.orders.filter((item) => item.strategyId !== strategyId);
+    this.positions = this.positions.filter((item) => item.symbol !== strategy.symbol);
+    this.trades = this.trades.filter((item) => item.strategyId !== strategyId);
+
+    this.updateStrategy({
+      ...strategy,
+      stage: lastBacktest ? "backtest" : baseline.stage,
+      paperSessionActive: false,
+      validation: {
+        ...baseline.validation,
+        feeAdjustedReturnPct: lastBacktest?.feeAdjustedReturnPct ?? baseline.validation.feeAdjustedReturnPct,
+        maxDrawdownPct: lastBacktest?.maxDrawdownPct ?? baseline.validation.maxDrawdownPct,
+      },
+    });
+
+    await this.recordEvent({
+      kind: "system",
+      title: `${strategy.name} paper evidence reset`,
+      body: `Cleared prior Kraken paper cycles for ${strategy.symbol} so validation can restart on a clean ledger.`,
+      severity: "warning",
+    });
+    await this.persistState();
+
+    return this.listStrategies().find((item) => item.id === strategyId)!;
+  }
+
   async startPaperSession(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const existingSession = this.managedSessions.get(strategyId) ?? null;
@@ -896,6 +936,14 @@ export class HexchangeService {
       throw new Error(`Unknown strategy ${strategyId}`);
     }
     return strategy;
+  }
+
+  private buildBaselineStrategy(strategyId: string): StrategyState {
+    const baseline = buildReferenceStrategies(this.marketDataService).find((item) => item.id === strategyId);
+    if (!baseline) {
+      throw new Error(`Unknown baseline strategy ${strategyId}`);
+    }
+    return baseline;
   }
 
   private updateStrategy(strategy: StrategyState): void {

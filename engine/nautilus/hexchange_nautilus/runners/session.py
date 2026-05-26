@@ -24,6 +24,12 @@ from ..artifacts import write_json_artifact
 HEARTBEAT_INTERVAL_SECONDS = 0.5
 HEARTBEAT_STALE_AFTER_SECONDS = 2.5
 KRAKEN_AUTH_CACHE_TTL_SECONDS = 30
+TEST_CYCLE_CLOSE_TICK = 3
+REAL_CYCLE_SCALE_TICK = 12
+REAL_CYCLE_TIMEOUT_TICK = 120
+REAL_CYCLE_SCALE_TARGET_MULTIPLIER = 1.003
+REAL_CYCLE_CLOSE_TARGET_MULTIPLIER = 1.006
+REAL_CYCLE_STOP_MULTIPLIER = 0.997
 
 
 def start_session(strategy_id: str, runs_dir: str) -> tuple[str, str]:
@@ -575,17 +581,26 @@ def _advance_session_state(
     entry_price = float(next_state["entryPrice"])
     remaining_quantity = float(next_state["remainingQuantity"])
     phase = str(next_state.get("phase", "open"))
+    fast_test_cycle = bool(_read_test_price_series())
 
-    if phase == "open" and remaining_quantity > 0 and current_price >= entry_price * 1.004:
+    if (
+        phase == "open"
+        and remaining_quantity > 0
+        and current_price >= entry_price * (1.004 if fast_test_cycle else REAL_CYCLE_SCALE_TARGET_MULTIPLIER)
+        and (fast_test_cycle or int(next_state["tick"]) >= REAL_CYCLE_SCALE_TICK)
+    ):
         partial_quantity = round(float(next_state["initialQuantity"]) / 2, 6)
         _append_exit_fill(next_state, partial_quantity, current_price, updated_at, "Scaled half the Kraken paper leg.")
         phase = "scaled"
 
     remaining_quantity = float(next_state["remainingQuantity"])
+    close_stop_multiplier = 0.995 if fast_test_cycle else REAL_CYCLE_STOP_MULTIPLIER
+    close_target_multiplier = 1.008 if fast_test_cycle else REAL_CYCLE_CLOSE_TARGET_MULTIPLIER
+    close_timeout_tick = TEST_CYCLE_CLOSE_TICK if fast_test_cycle else REAL_CYCLE_TIMEOUT_TICK
     if phase in {"open", "scaled"} and remaining_quantity > 0 and (
-        current_price <= entry_price * 0.995
-        or current_price >= entry_price * 1.008
-        or int(next_state["tick"]) >= 3
+        current_price <= entry_price * close_stop_multiplier
+        or current_price >= entry_price * close_target_multiplier
+        or int(next_state["tick"]) >= close_timeout_tick
     ):
         _append_exit_fill(next_state, remaining_quantity, current_price, updated_at, "Closed the Kraken paper leg.")
         phase = "closed"

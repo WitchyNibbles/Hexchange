@@ -52,6 +52,24 @@ async function waitForAutoRestart(service: HexchangeService, strategyId: string,
   throw new Error(`Timed out waiting for ${strategyId} paper automation restart`);
 }
 
+async function waitForCampaignStatus(
+  service: HexchangeService,
+  expectedStatus: "idle" | "collecting" | "stalled" | "ready",
+  timeoutMs = 4000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await service.refreshRuntimeTelemetry();
+    if (service.getValidationCampaignSummary().status === expectedStatus) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for validation campaign status ${expectedStatus}`);
+}
+
 async function terminateRuntimeWorkers(rootDir: string): Promise<void> {
   let entries: string[] = [];
   try {
@@ -475,6 +493,52 @@ describe("hexchange service persistence", () => {
     expect(trades.some((trade) => trade.side === "sell")).toBe(true);
   }, 20_000);
 
+  it("can reset polluted crypto paper evidence back to a clean ledger", async () => {
+    const appDir = await createTempDir();
+    const runsDir = await createTempDir();
+    const bundledPython = path.resolve(process.cwd(), "engine", "nautilus", ".venv", "bin", "python");
+
+    process.env.HEXCHANGE_ENGINE_MODE = "nautilus";
+    process.env.HEXCHANGE_NAUTILUS_PYTHON = bundledPython;
+    process.env.HEXCHANGE_NAUTILUS_PROJECT_DIR = path.resolve(process.cwd(), "engine", "nautilus");
+    process.env.HEXCHANGE_NAUTILUS_RUNS_DIR = runsDir;
+    process.env.HEXCHANGE_KRAKEN_TEST_PRICE_SERIES = "64688,64980,65220";
+
+    const service = await createHexchangeService(appDir);
+
+    await service.runStrategyBacktest("crypto-breakout");
+    await service.startPaperSession("crypto-breakout");
+    await waitForPaperCycleCompletion(service, "crypto-breakout");
+
+    const reset = await service.resetPaperEvidence("crypto-breakout");
+
+    expect(reset.paperSessionActive).toBe(false);
+    expect(reset.stage).toBe("backtest");
+    expect(reset.paperValidationStats).toEqual({
+      cycles: 0,
+      completedCycles: 0,
+      cumulativeRealizedPnlUsd: 0,
+      averageReturnPct: 0,
+      winRatePct: 0,
+    });
+    expect(reset.paperCycleHistory).toEqual([]);
+    expect(reset.validation.sampleSize).toBe(48);
+    expect(reset.validation.paperDriftPct).toBe(3.4);
+    expect(reset.liveEvidenceProgress.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "real-backtest",
+          status: "pass",
+        }),
+        expect.objectContaining({
+          id: "completed-cycles",
+          status: "blocked",
+        }),
+      ]),
+    );
+    expect(service.listTrades().filter((trade) => trade.strategyId === "crypto-breakout")).toEqual([]);
+  }, 20_000);
+
   it("records validation campaign milestones as paper evidence begins and target is reached", async () => {
     const appDir = await createTempDir();
     const runsDir = await createTempDir();
@@ -654,6 +718,7 @@ describe("hexchange service persistence", () => {
     );
 
     await service.startPaperSession("crypto-breakout");
+    await waitForCampaignStatus(service, "collecting");
 
     const collectingCampaign = service.getValidationCampaignSummary();
     events = await service.listEvents();

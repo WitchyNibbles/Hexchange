@@ -187,6 +187,17 @@ export function StrategiesRoute() {
                   {strategy.autoPaperValidationEnabled ? "Disable auto paper" : "Enable auto paper"}
                 </button>
               ) : null}
+              {strategy.market === "crypto" ? (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    void postJson(`/api/strategies/${strategy.id}/reset-paper-evidence`);
+                  }}
+                >
+                  Reset paper evidence
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="secondary"
