@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+requested_task_id=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo-root)
+      [[ $# -ge 2 ]] || { printf 'missing value for %s\n' "$1" >&2; exit 2; }
+      repo_root="$2"
+      shift 2
+      ;;
+    --task-id)
+      [[ $# -ge 2 ]] || { printf 'missing value for %s\n' "$1" >&2; exit 2; }
+      requested_task_id="$2"
+      shift 2
+      ;;
+    *)
+      printf 'unknown option: %s\n' "$1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+resolve_devgod_cli() {
+  local source_cli="$repo_root/src/admin/devgod.ts"
+  if [[ -f "$source_cli" ]]; then
+    printf '%s\n' "$source_cli"
+    return
+  fi
+
+  local installed_cli="$repo_root/node_modules/devgod/src/admin/devgod.ts"
+  if [[ -f "$installed_cli" ]]; then
+    printf '%s\n' "$installed_cli"
+    return
+  fi
+
+  local package_json="$repo_root/package.json"
+  if [[ ! -f "$package_json" ]]; then
+    printf 'missing package.json for devgod CLI resolution: %s\n' "${package_json#"$repo_root"/}" >&2
+    exit 1
+  fi
+
+  local resolved_cli=""
+  resolved_cli="$(
+    node --input-type=module - "$package_json" "$repo_root" <<'EOF'
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+const packageJsonPath = process.argv[2];
+const repoRoot = process.argv[3];
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+const dependency =
+  packageJson.devDependencies?.devgod ??
+  packageJson.dependencies?.devgod ??
+  packageJson.optionalDependencies?.devgod;
+
+if (typeof dependency !== "string" || !dependency.startsWith("file:")) {
+  process.exit(0);
+}
+
+const rawPath = dependency.slice("file:".length);
+const resolvedRoot = path.resolve(repoRoot, rawPath);
+const cliPath = path.join(resolvedRoot, "src", "admin", "devgod.ts");
+
+if (existsSync(cliPath)) {
+  process.stdout.write(`${cliPath}\n`);
+}
+EOF
+  )"
+
+  if [[ -n "$resolved_cli" && -f "$resolved_cli" ]]; then
+    printf '%s\n' "$resolved_cli"
+    return
+  fi
+
+  printf 'unable to resolve devgod CLI for runtime workflow proof from %s\n' "$repo_root" >&2
+  exit 1
+}
+
+if [[ -z "$requested_task_id" ]]; then
+  active_file="$repo_root/.devgod/ACTIVE"
+  [[ -f "$active_file" ]] || {
+    printf 'missing active workflow file: %s\n' "${active_file#"$repo_root"/}" >&2
+    exit 1
+  }
+
+  active_state="$(awk -F= '$1 == "state" { print $2; exit }' "$active_file")"
+  active_state="${active_state%$'\r'}"
+  requested_task_id="$(awk -F= '$1 == "task_id" { print $2; exit }' "$active_file")"
+  requested_task_id="${requested_task_id%$'\r'}"
+
+  if [[ "$active_state" == "idle" && -z "$requested_task_id" ]]; then
+    printf '%s\n' '{"status":"idle","message":"devgod workflow is idle; no active task to verify. Pass --task-id <task-id> to verify a specific task explicitly."}'
+    exit 0
+  fi
+
+  if [[ "$active_state" == "complete" && -z "$requested_task_id" ]]; then
+    printf '%s\n' '{"status":"complete","message":"devgod workflow is complete; no active task remains to verify. Pass --task-id <task-id> to verify a specific task explicitly."}'
+    exit 0
+  fi
+
+  [[ -n "$requested_task_id" ]] || {
+    printf 'active workflow file lacks task_id: %s\n' "${active_file#"$repo_root"/}" >&2
+    exit 1
+  }
+fi
+
+devgod_cli="$(resolve_devgod_cli)"
+node --experimental-strip-types "$devgod_cli" workflow-proof --task-id "$requested_task_id" --run-id latest
+
+bash "$repo_root/scripts/check-devgod-workflow.sh" --live --external-review-authority --repo-root "$repo_root" --task-id "$requested_task_id"
