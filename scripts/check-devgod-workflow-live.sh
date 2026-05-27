@@ -97,6 +97,11 @@ if [[ -z "$requested_task_id" ]]; then
     exit 0
   fi
 
+  if [[ "$active_state" == "complete" && -z "$requested_task_id" ]]; then
+    printf '%s\n' '{"status":"complete","message":"devgod workflow is complete; no active task remains to verify. Pass --task-id <task-id> to verify a specific task explicitly."}'
+    exit 0
+  fi
+
   [[ -n "$requested_task_id" ]] || {
     printf 'active workflow file lacks task_id: %s\n' "${active_file#"$repo_root"/}" >&2
     exit 1
