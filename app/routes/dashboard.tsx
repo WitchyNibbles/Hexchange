@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getEvents, getSystemStatus, getTrades } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
@@ -13,6 +13,7 @@ import { SkeletonPanel } from "../components/Skeleton";
 import { toast } from "../lib/toast";
 import { starEvents } from "../lib/star-events";
 import { killSwitchEvents } from "../lib/kill-switch-events";
+import { useTilt } from "../hooks/use-tilt";
 
 interface Particle {
   id: number;
@@ -41,6 +42,16 @@ const panelVariants = {
     y: 0,
     transition: { type: "spring" as const, stiffness: 280, damping: 22, delay: i * 0.07 },
   }),
+  hover: {
+    y: -3,
+    scale: 1.003,
+    transition: { type: "spring" as const, stiffness: 400, damping: 28 },
+  },
+};
+
+const shimmerVariants = {
+  rest: { x: "-110%" },
+  hover: { x: "115%", transition: { duration: 0.55, ease: "easeOut" as const } },
 };
 
 export function DashboardRoute() {
@@ -49,6 +60,11 @@ export function DashboardRoute() {
   const { value: status, isPulsing: statusFresh, loading: statusLoading } = usePollingPulse(getSystemStatus, initialStatus);
   const { value: events, loading: eventsLoading } = usePollingJson<EventSummary[]>(getEvents, []);
   const { value: trades, loading: tradesLoading } = usePollingJson<TradeSummary[]>(getTrades, []);
+
+  const tiltObs = useTilt();
+  const tiltLens = useTilt();
+  const tiltFamiliar = useTilt();
+  const tiltLog = useTilt();
 
   const pnlPositive = status.totalProfitUsd >= 0;
 
@@ -145,11 +161,37 @@ export function DashboardRoute() {
 
       {/* Left column: Observatory + Profit Lens stacked */}
       <div className="dashboard-column">
-        <motion.div custom={1} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+        <motion.div
+          custom={1}
+          initial="hidden"
+          animate="visible"
+          variants={panelVariants}
+          whileHover="hover"
+          ref={tiltObs.ref as React.Ref<HTMLDivElement>}
+          style={tiltObs.style}
+          onMouseMove={tiltObs.onMouseMove}
+          onMouseLeave={tiltObs.onMouseLeave}
+        >
           <ObservatoryPanel status={status} trades={trades} isFresh={statusFresh} />
         </motion.div>
-        <motion.div custom={2} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+        <motion.div
+          custom={2}
+          initial="hidden"
+          animate="visible"
+          variants={panelVariants}
+          whileHover="hover"
+          ref={tiltLens.ref as React.Ref<HTMLDivElement>}
+          style={tiltLens.style}
+          onMouseMove={tiltLens.onMouseMove}
+          onMouseLeave={tiltLens.onMouseLeave}
+        >
           <section className="glass-panel metric-panel">
+            <motion.div
+              className="panel-shimmer"
+              aria-hidden
+              variants={shimmerVariants}
+              initial="rest"
+            />
             <div className="panel-header">
               <p className="panel-kicker">Profit Lens</p>
             </div>
@@ -191,10 +233,30 @@ export function DashboardRoute() {
 
       {/* Right column: Familiar + Ritual Log always adjacent */}
       <div className="dashboard-column">
-        <motion.div custom={3} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+        <motion.div
+          custom={3}
+          initial="hidden"
+          animate="visible"
+          variants={panelVariants}
+          whileHover="hover"
+          ref={tiltFamiliar.ref as React.Ref<HTMLDivElement>}
+          style={tiltFamiliar.style}
+          onMouseMove={tiltFamiliar.onMouseMove}
+          onMouseLeave={tiltFamiliar.onMouseLeave}
+        >
           <FamiliarStatus status={status} />
         </motion.div>
-        <motion.div custom={4} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+        <motion.div
+          custom={4}
+          initial="hidden"
+          animate="visible"
+          variants={panelVariants}
+          whileHover="hover"
+          ref={tiltLog.ref as React.Ref<HTMLDivElement>}
+          style={tiltLog.style}
+          onMouseMove={tiltLog.onMouseMove}
+          onMouseLeave={tiltLog.onMouseLeave}
+        >
           {eventsLoading ? (
             <section className="glass-panel">
               <div className="panel-header"><p className="panel-kicker">Ritual Log</p></div>
