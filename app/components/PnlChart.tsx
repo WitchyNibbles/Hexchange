@@ -42,7 +42,7 @@ export function PnlChart({ trades }: PnlChartProps) {
         horzLine: { color: "rgba(76,201,240,0.55)", labelBackgroundColor: "#060b1a" },
       },
       rightPriceScale: { borderVisible: false, textColor: "#7ba3c4" },
-      timeScale: { borderVisible: false, textColor: "#5a8aaa", timeVisible: true },
+      timeScale: { borderVisible: false, timeVisible: true },
       handleScroll: false,
       handleScale: false,
     });

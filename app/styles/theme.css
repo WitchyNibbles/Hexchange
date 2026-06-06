@@ -707,6 +707,7 @@ button.danger:hover {
   border-radius: 1.05rem;
   background: rgba(255, 255, 255, 0.018);
   border: 1px solid rgba(76, 201, 240, 0.08);
+  border-left: 2px solid rgba(76, 201, 240, 0.3);
   transition: border-color 200ms, background 200ms;
 }
 
@@ -715,6 +716,7 @@ button.danger:hover {
 .trade-row:hover {
   background: rgba(76, 201, 240, 0.04);
   border-color: rgba(76, 201, 240, 0.16);
+  border-left-color: rgba(76, 201, 240, 0.55);
 }
 
 .event-meta {
@@ -745,13 +747,19 @@ button.danger:hover {
 
 .severity-warning {
   border-color: rgba(251, 191, 36, 0.22);
+  border-left-color: var(--warning);
   background: rgba(251, 191, 36, 0.035);
 }
 
 .severity-critical {
   border-color: rgba(248, 113, 113, 0.28);
+  border-left-color: var(--loss);
   background: rgba(248, 113, 113, 0.04);
 }
+
+/* Trade row side-coded left borders */
+.trade-side-buy  { border-left-color: rgba(74, 222, 128, 0.55); }
+.trade-side-sell { border-left-color: rgba(248, 113, 113, 0.55); }
 
 /* ─── Strategy cards ─────────────────────────────── */
 
