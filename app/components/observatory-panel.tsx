@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { BatSvg } from "./decorations/BatSvg";
 import { AnimatedNumber } from "./AnimatedNumber";
 import type { SystemStatus, TradeSummary } from "../../src/shared/contracts";
@@ -17,12 +18,29 @@ export function ObservatoryPanel({ status, trades, isFresh }: ObservatoryPanelPr
         <p className="panel-kicker">Observatory</p>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <BatSvg size={26} className="bat-decoration" />
-          <span className={`mode-pill mode-${status.mode}`}>{status.mode}</span>
+          <span className={`mode-pill mode-${status.mode}`}>
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={status.mode}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                {status.mode}
+              </motion.span>
+            </AnimatePresence>
+          </span>
         </div>
       </div>
       <h2>Local trading familiar</h2>
       <p className="panel-copy">{status.currentActivity}</p>
-      <div className="stat-grid">
+      <motion.div
+        className="stat-grid"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.1 }}
+      >
         <div className={status.totalProfitUsd >= 0 ? "stat-profit" : "stat-loss"}>
           <span>Total profit</span>
           <strong>$<AnimatedNumber value={status.totalProfitUsd} /></strong>
@@ -43,7 +61,7 @@ export function ObservatoryPanel({ status, trades, isFresh }: ObservatoryPanelPr
             <AnimatedNumber value={status.liveStrategies} format={(n) => String(Math.round(n))} />
           </strong>
         </div>
-      </div>
+      </motion.div>
       <div className="observatory-callout">
         <span>Latest ritual</span>
         <strong>
