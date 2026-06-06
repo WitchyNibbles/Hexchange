@@ -4,6 +4,7 @@ import Lottie from "lottie-react";
 import { DashboardRoute } from "./routes/dashboard";
 import { StrategiesRoute } from "./routes/strategies";
 import { TradesRoute } from "./routes/trades";
+import { StarField } from "./components/StarField";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
 
@@ -31,6 +32,7 @@ function AnimatedRoutes() {
 export function App() {
   return (
     <BrowserRouter>
+      <StarField />
       <div className="app-shell">
         <motion.aside
           className="sidebar"
