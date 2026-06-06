@@ -1,4 +1,5 @@
 import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Lottie from "lottie-react";
 import { DashboardRoute } from "./routes/dashboard";
@@ -11,6 +12,15 @@ import batData from "./assets/lottie/bat.json";
 
 function AnimatedRoutes() {
   const location = useLocation();
+
+  useEffect(() => {
+    const page =
+      location.pathname === "/strategies" ? "spellbook" :
+      location.pathname === "/trades"     ? "ledger"    :
+      "dashboard";
+    document.body.dataset.page = page;
+  }, [location.pathname]);
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
