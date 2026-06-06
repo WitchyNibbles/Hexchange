@@ -70,10 +70,10 @@ export function DashboardRoute() {
 
       {/* Left column: Observatory + Profit Lens stacked */}
       <div className="dashboard-column">
-        <motion.div custom={1} initial="hidden" animate="visible" variants={panelVariants}>
+        <motion.div custom={1} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
           <ObservatoryPanel status={status} trades={trades} isFresh={statusFresh} />
         </motion.div>
-        <motion.div custom={2} initial="hidden" animate="visible" variants={panelVariants}>
+        <motion.div custom={2} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
           <section className={`glass-panel metric-panel${statusFresh ? " is-fresh" : ""}`}>
             <div className="panel-header">
               <p className="panel-kicker">Profit Lens</p>
@@ -116,10 +116,10 @@ export function DashboardRoute() {
 
       {/* Right column: Familiar + Ritual Log always adjacent */}
       <div className="dashboard-column">
-        <motion.div custom={3} initial="hidden" animate="visible" variants={panelVariants}>
+        <motion.div custom={3} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
           <FamiliarStatus status={status} />
         </motion.div>
-        <motion.div custom={4} initial="hidden" animate="visible" variants={panelVariants}>
+        <motion.div custom={4} initial="hidden" animate="visible" variants={panelVariants} whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
           {eventsLoading ? (
             <section className="glass-panel">
               <div className="panel-header"><p className="panel-kicker">Ritual Log</p></div>

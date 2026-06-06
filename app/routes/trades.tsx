@@ -53,7 +53,7 @@ export function TradesRoute() {
 
   return (
     <div className="page-grid">
-      <section className="glass-panel trades-page">
+      <motion.section className="glass-panel trades-page" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
         <div className="panel-header">
           <p className="panel-kicker">Ledger</p>
         </div>
@@ -91,9 +91,9 @@ export function TradesRoute() {
           })}
           {!tradesLoading && trades.length === 0 ? <p className="panel-copy">No trades recorded yet.</p> : null}
         </div>
-      </section>
+      </motion.section>
 
-      <section className="glass-panel portfolio-page">
+      <motion.section className="glass-panel portfolio-page" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
         <div className="panel-header">
           <p className="panel-kicker">Ward Circle</p>
         </div>
@@ -128,9 +128,9 @@ export function TradesRoute() {
         >
           ⊘ Engage kill switch
         </button>
-      </section>
+      </motion.section>
 
-      <section className="glass-panel control-center-panel">
+      <motion.section className="glass-panel control-center-panel" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
         <div className="panel-header">
           <p className="panel-kicker">Control Center</p>
         </div>
@@ -223,7 +223,7 @@ export function TradesRoute() {
             Reset kill switch
           </button>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 }
