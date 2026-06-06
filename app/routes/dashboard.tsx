@@ -31,7 +31,7 @@ const panelVariants = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.32, delay: i * 0.07, ease: "easeOut" as const },
+    transition: { type: "spring" as const, stiffness: 280, damping: 22, delay: i * 0.07 },
   }),
 };
 
