@@ -26,6 +26,7 @@ export function PnlChart({ trades }: PnlChartProps) {
     });
 
     const chart = createChart(containerRef.current, {
+      autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#7ba3c4",
@@ -33,41 +34,35 @@ export function PnlChart({ trades }: PnlChartProps) {
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(76,201,240,0.05)" },
-        horzLines: { color: "rgba(76,201,240,0.05)" },
+        vertLines: { color: "rgba(76,201,240,0.035)" },
+        horzLines: { color: "rgba(76,201,240,0.035)" },
       },
       crosshair: {
-        vertLine: { color: "rgba(76,201,240,0.4)" },
-        horzLine: { color: "rgba(76,201,240,0.4)" },
+        vertLine: { color: "rgba(76,201,240,0.55)", labelBackgroundColor: "#060b1a" },
+        horzLine: { color: "rgba(76,201,240,0.55)", labelBackgroundColor: "#060b1a" },
       },
-      rightPriceScale: { borderColor: "rgba(76,201,240,0.12)" },
-      timeScale: { borderColor: "rgba(76,201,240,0.12)", timeVisible: true },
-      width: containerRef.current.clientWidth,
-      height: 180,
+      rightPriceScale: { borderVisible: false, textColor: "#7ba3c4" },
+      timeScale: { borderVisible: false, textColor: "#5a8aaa", timeVisible: true },
+      handleScroll: false,
+      handleScale: false,
     });
 
     const isProfit = cumulative >= 0;
     const series = chart.addSeries(AreaSeries, {
       lineColor: isProfit ? "#4ade80" : "#f87171",
-      topColor: isProfit ? "rgba(74,222,128,0.28)" : "rgba(248,113,113,0.28)",
+      topColor: isProfit ? "rgba(74,222,128,0.32)" : "rgba(248,113,113,0.32)",
       bottomColor: isProfit ? "rgba(74,222,128,0.0)" : "rgba(248,113,113,0.0)",
       lineWidth: 2,
       crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 4,
+      crosshairMarkerRadius: 5,
+      crosshairMarkerBorderColor: isProfit ? "#4ade80" : "#f87171",
+      crosshairMarkerBackgroundColor: "#060b1a",
     });
 
     series.setData(data);
     chart.timeScale().fitContent();
 
-    const observer = new ResizeObserver(() => {
-      if (containerRef.current) {
-        chart.applyOptions({ width: containerRef.current.clientWidth });
-      }
-    });
-    observer.observe(containerRef.current);
-
     return () => {
-      observer.disconnect();
       chart.remove();
     };
   }, [trades]);
