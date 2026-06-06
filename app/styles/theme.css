@@ -1281,6 +1281,23 @@ button.danger:hover {
   }
 }
 
+/* ─── Panel shimmer sweep ────────────────────────── */
+
+.panel-shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform;
+}
+
 /* ─── Disable hover effects on touch devices ─────── */
 
 @media (hover: none) {
@@ -1312,4 +1329,6 @@ button.danger:hover {
     background: rgba(76, 201, 240, 0.08);
     box-shadow: none;
   }
+
+  .panel-shimmer { display: none; }
 }

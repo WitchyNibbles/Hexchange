@@ -49,6 +49,15 @@ export function FamiliarStatus({ status }: { status: SystemStatus }) {
 
   return (
     <section className="glass-panel familiar-panel">
+      <motion.div
+        className="panel-shimmer"
+        aria-hidden
+        variants={{
+          rest: { x: "-110%" },
+          hover: { x: "115%", transition: { duration: 0.55, ease: "easeOut" } },
+        }}
+        initial="rest"
+      />
       <div className="panel-header">
         <p className="panel-kicker">Familiar View</p>
       </div>
