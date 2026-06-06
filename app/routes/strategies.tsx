@@ -1,8 +1,10 @@
-import { motion } from "framer-motion";
-import { getEngineStatus, getStrategies, postJson } from "../lib/api";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { getEngineStatus, getStrategies, postJson, postWalkForward } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { EngineStatus, StrategySummary } from "../../src/shared/contracts";
+import type { EngineStatus, StrategySummary, WalkForwardResult } from "../../src/shared/contracts";
 import { SkeletonPanel } from "../components/Skeleton";
+import { WalkForwardPanel } from "../components/WalkForwardPanel";
 
 const defaultEngineStatus: EngineStatus = {
   mode: "simulated",
@@ -13,6 +15,18 @@ const defaultEngineStatus: EngineStatus = {
 export function StrategiesRoute() {
   const { value: strategies, loading: strategiesLoading } = usePollingJson<StrategySummary[]>(getStrategies, []);
   const { value: engineStatus } = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
+  const [wfResults, setWfResults] = useState<Record<string, WalkForwardResult | null>>({});
+  const [wfLoading, setWfLoading] = useState<Record<string, boolean>>({});
+
+  async function runWalkForward(strategyId: string) {
+    setWfLoading((prev) => ({ ...prev, [strategyId]: true }));
+    try {
+      const result = await postWalkForward(strategyId);
+      setWfResults((prev) => ({ ...prev, [strategyId]: result }));
+    } finally {
+      setWfLoading((prev) => ({ ...prev, [strategyId]: false }));
+    }
+  }
 
   return (
     <section className="glass-panel strategies-page">
@@ -71,6 +85,15 @@ export function StrategiesRoute() {
                   : "No backtest recorded yet."}
               </p>
             </div>
+            <AnimatePresence>
+              {(wfLoading[strategy.id] || wfResults[strategy.id]) && (
+                <WalkForwardPanel
+                  result={wfResults[strategy.id] ?? null}
+                  loading={wfLoading[strategy.id] ?? false}
+                />
+              )}
+            </AnimatePresence>
+
             <div className="strategy-actions">
               <button
                 type="button"
@@ -80,6 +103,14 @@ export function StrategiesRoute() {
                 }}
               >
                 Run backtest
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={wfLoading[strategy.id]}
+                onClick={() => void runWalkForward(strategy.id)}
+              >
+                {wfLoading[strategy.id] ? "Validating…" : "Validate windows"}
               </button>
               <button
                 type="button"

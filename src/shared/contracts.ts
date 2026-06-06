@@ -1,4 +1,5 @@
 import type { OrderStatus, OrderSide } from "../server/domain/order";
+import type { WalkForwardResult } from "../server/engine/types";
 import type { PositionSnapshot } from "../server/domain/position";
 import type {
   StrategyLifecycleStage,
@@ -68,3 +69,4 @@ export interface RiskSettings {
 }
 
 export interface EngineStatus extends EngineStatusPayload {}
+export type { WalkForwardResult } from "../server/engine/types";

@@ -34,8 +34,36 @@ export interface EngineStatus {
   latestBacktests: BacktestResult[];
 }
 
+export interface WalkForwardWindow {
+  windowIndex: number;
+  inSampleStart: string;
+  inSampleEnd: string;
+  outOfSampleStart: string | null;
+  outOfSampleEnd: string | null;
+  inSampleReturnPct: number;
+  outOfSampleReturnPct: number | null;
+  maxDrawdownPct: number;
+  regime: string;
+}
+
+export interface WalkForwardResult {
+  strategyId: string;
+  windowCount: number;
+  robustnessPct: number;
+  verdict: "robust" | "regime_dependent" | "weak";
+  windows: WalkForwardWindow[];
+  generatedAt: string;
+}
+
+export interface WalkForwardRequest {
+  strategyId: string;
+  symbol: string;
+  market: "stock" | "crypto";
+}
+
 export interface EngineAdapter {
   runBacktest(request: BacktestRequest): Promise<BacktestResult>;
+  runWalkForward(request: WalkForwardRequest): Promise<WalkForwardResult>;
   startPaperSession(strategyId: string): Promise<PaperSession>;
   stopSession(sessionId: string): Promise<void>;
   getOrders(strategyId: string): Promise<NormalizedOrder[]>;

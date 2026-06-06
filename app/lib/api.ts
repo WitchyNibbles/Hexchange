@@ -6,6 +6,7 @@ import type {
   StrategySummary,
   SystemStatus,
   TradeSummary,
+  WalkForwardResult,
 } from "../../src/shared/contracts";
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -56,6 +57,10 @@ export async function postJson<T>(path: string, body?: Record<string, unknown>):
     throw new Error(`Request failed for ${path}`);
   }
   return (await response.json()) as T;
+}
+
+export function postWalkForward(strategyId: string): Promise<WalkForwardResult> {
+  return postJson(`/api/strategies/${strategyId}/walk-forward`);
 }
 
 export async function patchJson<T>(path: string, body: Record<string, unknown>): Promise<T> {
