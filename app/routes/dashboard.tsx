@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { getEvents, getSystemStatus, getTrades } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
@@ -9,6 +10,7 @@ import { FamiliarStatus } from "../components/familiar-status";
 import { RitualLog } from "../components/ritual-log";
 import { PnlChart } from "../components/PnlChart";
 import { SkeletonPanel } from "../components/Skeleton";
+import { toast } from "../lib/toast";
 
 const initialStatus: SystemStatus = {
   mode: "research",
@@ -34,6 +36,8 @@ const panelVariants = {
 };
 
 export function DashboardRoute() {
+  useEffect(() => { toast.show("Observatory online.", "info"); }, []);
+
   const { value: status, isPulsing: statusFresh, loading: statusLoading } = usePollingPulse(getSystemStatus, initialStatus);
   const { value: events, loading: eventsLoading } = usePollingJson<EventSummary[]>(getEvents, []);
   const { value: trades, loading: tradesLoading } = usePollingJson<TradeSummary[]>(getTrades, []);
