@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useTilt } from "../hooks/use-tilt";
 import {
   getPortfolio,
   getRiskSettings,
@@ -47,13 +48,25 @@ export function TradesRoute() {
   const { value: status } = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
   const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
 
+  const tiltLedger = useTilt();
+  const tiltWard = useTilt();
+  const tiltControl = useTilt();
+
   useEffect(() => {
     setDraftSettings(riskSettings);
   }, [riskSettings]);
 
   return (
     <div className="page-grid">
-      <motion.section className="glass-panel trades-page" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+      <motion.section
+        className="glass-panel trades-page"
+        whileHover={{ y: -3, scale: 1.003 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        ref={tiltLedger.ref as React.Ref<HTMLElement>}
+        style={tiltLedger.style}
+        onMouseMove={tiltLedger.onMouseMove}
+        onMouseLeave={tiltLedger.onMouseLeave}
+      >
         <div className="panel-header">
           <p className="panel-kicker">Ledger</p>
         </div>
@@ -94,7 +107,15 @@ export function TradesRoute() {
         </div>
       </motion.section>
 
-      <motion.section className="glass-panel portfolio-page" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+      <motion.section
+        className="glass-panel portfolio-page"
+        whileHover={{ y: -3, scale: 1.003 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        ref={tiltWard.ref as React.Ref<HTMLElement>}
+        style={tiltWard.style}
+        onMouseMove={tiltWard.onMouseMove}
+        onMouseLeave={tiltWard.onMouseLeave}
+      >
         <div className="panel-header">
           <p className="panel-kicker">Ward Circle</p>
         </div>
@@ -131,7 +152,15 @@ export function TradesRoute() {
         </button>
       </motion.section>
 
-      <motion.section className="glass-panel control-center-panel" whileHover={{ y: -3, scale: 1.003 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}>
+      <motion.section
+        className="glass-panel control-center-panel"
+        whileHover={{ y: -3, scale: 1.003 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        ref={tiltControl.ref as React.Ref<HTMLElement>}
+        style={tiltControl.style}
+        onMouseMove={tiltControl.onMouseMove}
+        onMouseLeave={tiltControl.onMouseLeave}
+      >
         <div className="panel-header">
           <p className="panel-kicker">Control Center</p>
         </div>

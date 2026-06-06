@@ -6,6 +6,7 @@ import { DashboardRoute } from "./routes/dashboard";
 import { StrategiesRoute } from "./routes/strategies";
 import { TradesRoute } from "./routes/trades";
 import { StarField } from "./components/StarField";
+import { CursorAura } from "./components/CursorAura";
 import { MainHeader } from "./components/MainHeader";
 import { ObservatoryIcon, SpellbookIcon, LedgerIcon } from "./components/icons/NavIcons";
 import { ToastRail } from "./components/ToastRail";
@@ -76,6 +77,7 @@ export function App() {
   return (
     <BrowserRouter>
       <StarField />
+      <CursorAura />
       <div className="app-shell">
         <motion.aside
           className="sidebar"

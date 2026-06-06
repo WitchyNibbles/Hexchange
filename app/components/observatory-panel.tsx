@@ -14,6 +14,15 @@ export function ObservatoryPanel({ status, trades, isFresh }: ObservatoryPanelPr
 
   return (
     <section className="glass-panel observatory-panel" style={{ position: "relative" }}>
+      <motion.div
+        className="panel-shimmer"
+        aria-hidden
+        variants={{
+          rest: { x: "-110%" },
+          hover: { x: "115%", transition: { duration: 0.55, ease: "easeOut" } },
+        }}
+        initial="rest"
+      />
       <AnimatePresence>
         {isFresh && (
           <motion.div

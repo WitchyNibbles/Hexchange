@@ -30,6 +30,15 @@ export function RitualLog({ events }: { events: EventSummary[] }) {
 
   return (
     <section className="glass-panel ritual-log">
+      <motion.div
+        className="panel-shimmer"
+        aria-hidden
+        variants={{
+          rest: { x: "-110%" },
+          hover: { x: "115%", transition: { duration: 0.55, ease: "easeOut" } },
+        }}
+        initial="rest"
+      />
       <div className="panel-header">
         <div className="ritual-log-header" style={{ flex: 1 }}>
           <p className="panel-kicker" style={{ margin: 0 }}>Ritual Log</p>
