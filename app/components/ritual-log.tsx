@@ -46,14 +46,20 @@ export function RitualLog({ events }: { events: EventSummary[] }) {
         <AnimatePresence mode="wait">
           <motion.div
             key={page}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             style={{ display: "contents" }}
           >
-            {visibleEvents.map((event) => (
-              <article className={`event-card severity-${event.severity}`} key={event.id}>
+            {visibleEvents.map((event, i) => (
+              <motion.article
+                className={`event-card severity-${event.severity}`}
+                key={event.id}
+                initial={{ opacity: 0, scale: 0.93, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: i * 0.05, ease: "easeOut" }}
+              >
                 <div className="event-meta">
                   <span>
                     {kindGlyph[event.kind] ?? "◈"} {event.kind.replace(/_/g, " ")}
@@ -62,7 +68,7 @@ export function RitualLog({ events }: { events: EventSummary[] }) {
                 </div>
                 <strong>{event.title}</strong>
                 <p>{event.body}</p>
-              </article>
+              </motion.article>
             ))}
           </motion.div>
         </AnimatePresence>
