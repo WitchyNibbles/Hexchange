@@ -11,6 +11,7 @@ export interface TradeLogEntry {
   feeUsd: number;
   realizedPnlUsd: number;
   expectedEdgeBps: number;
+  slippageBps: number;
   explanation: string;
   createdAt: string;
 }

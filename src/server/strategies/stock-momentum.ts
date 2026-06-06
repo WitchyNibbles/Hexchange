@@ -1,5 +1,6 @@
 import type { Candle } from "../market/candles-cache";
 import type { SignalExplanation } from "../domain/strategy";
+import { classifyRegime } from "./regime-classifier";
 
 export function buildStockMomentumSignal(candles: Candle[]): SignalExplanation | null {
   if (candles.length < 4) {
@@ -17,10 +18,12 @@ export function buildStockMomentumSignal(candles: Candle[]): SignalExplanation |
     return null;
   }
 
+  const { regime } = classifyRegime(recent);
+
   return {
     summary: `Momentum remains constructive with price closing above the trailing three-candle mean at ${latest.close.toFixed(2)}.`,
     indicators: ["price > trailing mean", "volume expansion", "trend continuation"],
-    regime: "trend",
+    regime,
     confidence: 0.78,
     expectedEdgeBps: 86,
     invalidation: "Exit if price closes back below the trailing mean or volume collapses.",

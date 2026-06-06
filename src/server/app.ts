@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerEventRoutes } from "./api/events";
 import type { HexchangeService } from "./services/hexchange-service";
+import { logger } from "./utils/logger";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(currentDir, "..", "..", "..");
@@ -37,6 +38,11 @@ function requireLocalOrigin(request: Request, response: Response, next: NextFunc
 export function createServerApp(service: HexchangeService): Express {
   const app = express();
   app.use(express.json());
+
+  app.use((request: Request, _response: Response, next: NextFunction) => {
+    logger.debug("request", { method: request.method, path: request.path });
+    next();
+  });
 
   // Rate limiting and origin enforcement for all mutating requests
   app.use((request: Request, response: Response, next: NextFunction) => {
@@ -74,6 +80,14 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.runStrategyBacktest(request.params.strategyId));
   });
 
+  app.post("/api/strategies/:strategyId/walk-forward", async (request, response) => {
+    try {
+      response.json(await service.runWalkForwardValidation(request.params.strategyId));
+    } catch (error) {
+      response.status(400).json({ error: error instanceof Error ? error.message : "walk-forward failed" });
+    }
+  });
+
   app.post("/api/strategies/:strategyId/paper-session", async (request, response) => {
     response.json(await service.startPaperSession(request.params.strategyId));
   });
@@ -88,6 +102,18 @@ export function createServerApp(service: HexchangeService): Express {
 
   app.get("/api/trades", (_request, response) => {
     response.json(service.listTrades());
+  });
+
+  app.get("/api/monitoring/execution-metrics", (_request, response) => {
+    response.json(service.getExecutionMetrics());
+  });
+
+  app.get("/api/strategies/:strategyId/drift-report", (request, response) => {
+    try {
+      response.json(service.getDriftReport(request.params.strategyId));
+    } catch (error) {
+      response.status(404).json({ error: error instanceof Error ? error.message : "not found" });
+    }
   });
 
   app.post("/api/control/kill-switch", async (request, response) => {

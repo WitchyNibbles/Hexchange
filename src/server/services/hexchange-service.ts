@@ -27,6 +27,10 @@ import { RiskEngine } from "../risk/risk-engine";
 import { RuntimeStateStore } from "../state/runtime-state-store";
 import { buildValidationReport } from "../strategies/validation-report";
 import { buildReferenceStrategies } from "../strategies/strategy-registry";
+import { estimateSlippage, computeAverageSlippageBps } from "../market/slippage-model";
+import { computePaperDriftPct, computeDriftReport } from "../monitoring/drift-report-service";
+import { detectAnomalies } from "../monitoring/anomaly-detector";
+import { computeExecutionMetrics } from "../monitoring/execution-metrics-service";
 
 function createId(prefix: string): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -160,6 +164,31 @@ export class HexchangeService {
     };
   }
 
+  getExecutionMetrics() {
+    return computeExecutionMetrics(this.trades, this.orders);
+  }
+
+  async runWalkForwardValidation(strategyId: string) {
+    const strategy = this.findStrategy(strategyId);
+    const result = await this.engineAdapter.runWalkForward({
+      strategyId,
+      symbol: strategy.symbol,
+      market: strategy.market,
+    });
+    await this.recordEvent({
+      kind: "system",
+      title: `${strategy.name} walk-forward complete`,
+      body: `${result.windowCount} windows · ${result.robustnessPct}% robust · verdict: ${result.verdict.replace("_", " ")}.`,
+      severity: result.verdict === "weak" ? "warning" : "info",
+    });
+    return result;
+  }
+
+  getDriftReport(strategyId: string) {
+    const lastBacktest = this.backtests.find((b) => b.strategyId === strategyId) ?? null;
+    return computeDriftReport(strategyId, this.trades, lastBacktest, this.riskSettings.startingCapitalUsd);
+  }
+
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {
     const validated = validateRiskSettingsPatch(nextSettings);
     Object.assign(this.riskSettings, validated);
@@ -184,6 +213,10 @@ export class HexchangeService {
     });
 
     this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== strategyId)].slice(0, 10);
+
+    const driftPct = computePaperDriftPct(strategyId, this.trades, result, this.riskSettings.startingCapitalUsd);
+    this.updateStrategyValidation(strategyId, { paperDriftPct: driftPct });
+
     await this.recordEvent({
       kind: "system",
       title: `${strategy.name} backtest completed`,
@@ -322,7 +355,16 @@ export class HexchangeService {
     }
 
     const latestPrice = this.marketDataService.getLatestPrice(intent.symbol);
-    const fillPrice = Number((latestPrice * 1.001).toFixed(2));
+    const candles = this.marketDataService.getCandles(intent.symbol);
+    const adv = candles.reduce((sum, c) => sum + c.volume, 0) / Math.max(candles.length, 1);
+
+    const { fillPrice, slippageBps } = estimateSlippage({
+      midPrice: latestPrice,
+      quantity: intent.quantity,
+      market: intent.market,
+      adv,
+    });
+
     const order: NormalizedOrder = {
       ...intent,
       status: "filled",
@@ -340,7 +382,6 @@ export class HexchangeService {
     };
     this.positions = [position, ...this.positions.filter((item) => item.symbol !== intent.symbol)];
 
-    const candles = this.marketDataService.getCandles(intent.symbol);
     const ref = candles.at(-1);
     const intraVol = ref ? (ref.high - ref.low) / ref.open : 0.02;
     const simulatedReturnPct = (Math.random() * 2 - 1) * intraVol - 0.001;
@@ -356,10 +397,34 @@ export class HexchangeService {
       feeUsd,
       realizedPnlUsd: Number((simulatedReturnPct * fillPrice * intent.quantity).toFixed(2)),
       expectedEdgeBps: this.findStrategy(intent.strategyId).signal?.expectedEdgeBps ?? 0,
+      slippageBps,
       explanation: intent.rationale,
       createdAt: new Date().toISOString(),
     };
     this.trades.unshift(trade);
+
+    const strategyTrades = this.trades.filter((t) => t.strategyId === intent.strategyId);
+    const avgSlippage = computeAverageSlippageBps(strategyTrades);
+    const lastBacktest = this.backtests.find((b) => b.strategyId === intent.strategyId) ?? null;
+    const driftPct = computePaperDriftPct(intent.strategyId, this.trades, lastBacktest, this.riskSettings.startingCapitalUsd);
+    this.updateStrategyValidation(intent.strategyId, { slippageBps: avgSlippage, paperDriftPct: driftPct });
+
+    const anomalies = detectAnomalies({
+      strategyId: intent.strategyId,
+      trades: this.trades,
+      dailyDrawdownPct: this.computeDailyDrawdownPct(),
+      maxDailyLossPct: this.riskSettings.maxDailyLossPct,
+      latestSlippageBps: slippageBps,
+      modelSlippageBps: avgSlippage > 0 ? avgSlippage : slippageBps,
+    });
+    for (const anomaly of anomalies) {
+      await this.recordEvent({
+        kind: "risk",
+        title: `Anomaly detected: ${anomaly.kind.replace(/_/g, " ")}`,
+        body: anomaly.message,
+        severity: anomaly.severity,
+      });
+    }
 
     await this.recordEvent({
       kind: "fill",
@@ -415,6 +480,14 @@ export class HexchangeService {
 
   private updateStrategy(strategy: StrategyState): void {
     this.strategies = this.strategies.map((item) => (item.id === strategy.id ? strategy : item));
+  }
+
+  private updateStrategyValidation(strategyId: string, patch: Partial<StrategyState["validation"]>): void {
+    this.strategies = this.strategies.map((item) =>
+      item.id === strategyId
+        ? { ...item, validation: { ...item.validation, ...patch } }
+        : item,
+    );
   }
 
   private async recordEvent(event: Omit<EventLogRecord, "id" | "createdAt">): Promise<void> {
