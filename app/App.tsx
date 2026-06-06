@@ -1,4 +1,4 @@
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, NavLink, Route, Routes, useLocation, useMatch } from "react-router-dom";
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Lottie from "lottie-react";
@@ -9,8 +9,38 @@ import { StarField } from "./components/StarField";
 import { MainHeader } from "./components/MainHeader";
 import { ObservatoryIcon, SpellbookIcon, LedgerIcon } from "./components/icons/NavIcons";
 import { ToastRail } from "./components/ToastRail";
+import { KillSwitchOverlay } from "./components/KillSwitchOverlay";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
+
+function NavItem({
+  to,
+  end,
+  icon,
+  label,
+}: {
+  to: string;
+  end?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  const match = useMatch({ path: to, end: end ?? false });
+  const isActive = Boolean(match);
+
+  return (
+    <NavLink to={to} end={end}>
+      {isActive && (
+        <motion.div
+          layoutId="nav-pill"
+          className="nav-active-pill"
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        />
+      )}
+      <span className="nav-icon nav-icon-z">{icon}</span>
+      <span className="nav-label-z">{label}</span>
+    </NavLink>
+  );
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -27,10 +57,10 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <motion.div
         key={location.pathname}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.26, ease: "easeOut" }}
+        initial={{ opacity: 0, scale: 0.985 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.012 }}
+        transition={{ type: "spring", stiffness: 320, damping: 26 }}
       >
         <Routes location={location}>
           <Route path="/" element={<DashboardRoute />} />
@@ -51,17 +81,19 @@ export function App() {
           className="sidebar"
           initial={{ x: -16, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.38, ease: "easeOut" }}
+          transition={{ type: "spring", stiffness: 260, damping: 24 }}
         >
           <div className="sidebar-glow" aria-hidden="true" />
           <div className="sidebar-inner">
             <div className="brand-mark">
               {/* Jack O'Lantern as the app mascot / brand sigil */}
-              <Lottie
-                animationData={pumpkinData}
-                loop
-                style={{ width: 54, height: 54, flexShrink: 0 }}
-              />
+              <motion.div
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+                style={{ flexShrink: 0 }}
+              >
+                <Lottie animationData={pumpkinData} loop style={{ width: 54, height: 54 }} />
+              </motion.div>
               <div>
                 <p className="eyebrow">Witchy operator console</p>
                 <h1>Hexchange</h1>
@@ -71,28 +103,26 @@ export function App() {
               A midnight observatory for validating and running autonomous trading strategies.
             </p>
             <nav className="nav-list">
-              <NavLink to="/">
-                <span className="nav-icon"><ObservatoryIcon size={15} /></span>
-                Observatory
-              </NavLink>
-              <NavLink to="/strategies">
-                <span className="nav-icon"><SpellbookIcon size={15} /></span>
-                Spellbook
-              </NavLink>
-              <NavLink to="/trades">
-                <span className="nav-icon"><LedgerIcon size={15} /></span>
-                Ledger
-              </NavLink>
+              <NavItem to="/" end icon={<ObservatoryIcon size={15} />} label="Observatory" />
+              <NavItem to="/strategies" icon={<SpellbookIcon size={15} />} label="Spellbook" />
+              <NavItem to="/trades" icon={<LedgerIcon size={15} />} label="Ledger" />
             </nav>
 
             {/* Bat lives at the bottom of the sidebar — atmospheric mood-setter */}
-            <div className="sidebar-decorations">
-              <Lottie
-                animationData={batData}
-                loop
-                style={{ width: 110, opacity: 0.82 }}
-              />
-            </div>
+            <motion.div
+              className="sidebar-decorations"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 240, damping: 22, delay: 0.45 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.15, rotate: [-6, 6, 0] }}
+                transition={{ type: "spring", stiffness: 300, damping: 14 }}
+                style={{ cursor: "default" }}
+              >
+                <Lottie animationData={batData} loop style={{ width: 110, opacity: 0.82 }} />
+              </motion.div>
+            </motion.div>
           </div>
         </motion.aside>
         <main className="main-panel">
@@ -103,6 +133,7 @@ export function App() {
         </main>
       </div>
       <ToastRail />
+      <KillSwitchOverlay />
     </BrowserRouter>
   );
 }
