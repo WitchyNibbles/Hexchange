@@ -13,7 +13,27 @@ export function ObservatoryPanel({ status, trades, isFresh }: ObservatoryPanelPr
   const recentTrade = trades[0];
 
   return (
-    <section className={`glass-panel observatory-panel${isFresh ? " is-fresh" : ""}`}>
+    <section className="glass-panel observatory-panel" style={{ position: "relative" }}>
+      <AnimatePresence>
+        {isFresh && (
+          <motion.div
+            key="fresh-ripple"
+            initial={{ opacity: 0.55, scale: 0.9 }}
+            animate={{ opacity: 0, scale: 1.06 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.72, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "inherit",
+              border: "1.5px solid rgba(76, 201, 240, 0.55)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+            aria-hidden
+          />
+        )}
+      </AnimatePresence>
       <div className="panel-header">
         <p className="panel-kicker">Observatory</p>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
