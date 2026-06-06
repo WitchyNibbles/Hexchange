@@ -506,9 +506,59 @@ button.danger:hover {
 /* ─── Main panel ─────────────────────────────────── */
 
 .main-panel {
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
   position: relative;
   z-index: 1;
+}
+
+/* ─── Main header bar ────────────────────────────── */
+
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 2rem;
+  background: rgba(6, 11, 26, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(76, 201, 240, 0.1);
+}
+
+.main-header-route {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  opacity: 0.82;
+}
+
+.main-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.main-header-clock {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.83rem;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  opacity: 0.78;
+}
+
+/* ─── Main content wrapper ───────────────────────── */
+
+.main-content {
+  padding: 1.75rem 2rem 2rem;
+  flex: 1;
 }
 
 /* ─── Page grid ──────────────────────────────────── */

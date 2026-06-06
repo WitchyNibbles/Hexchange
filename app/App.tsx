@@ -5,6 +5,7 @@ import { DashboardRoute } from "./routes/dashboard";
 import { StrategiesRoute } from "./routes/strategies";
 import { TradesRoute } from "./routes/trades";
 import { StarField } from "./components/StarField";
+import { MainHeader } from "./components/MainHeader";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
 
@@ -83,7 +84,10 @@ export function App() {
           </div>
         </motion.aside>
         <main className="main-panel">
-          <AnimatedRoutes />
+          <MainHeader />
+          <div className="main-content">
+            <AnimatedRoutes />
+          </div>
         </main>
       </div>
     </BrowserRouter>
