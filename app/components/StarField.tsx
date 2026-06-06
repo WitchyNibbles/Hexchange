@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { starEvents } from "../lib/star-events";
 
 interface Star {
   x: number;
@@ -11,7 +12,7 @@ interface Star {
   twinkleSpeed: number;
 }
 
-const STAR_COUNT = 80;
+const STAR_COUNT = 100;
 const CONNECTION_DISTANCE = 110;
 const PARALLAX_PX = 18;
 
@@ -45,12 +46,45 @@ export function StarField() {
       }));
     }
 
+    interface ShootingStar {
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+      progress: number;
+      length: number;
+    }
+    const shootingStarsRef = { current: [] as ShootingStar[] };
+
+    starEvents.register(() => {
+      shootingStarsRef.current.push({
+        x: Math.random() * 0.6 + 0.1,
+        y: Math.random() * 0.4,
+        dx: 0.35 + Math.random() * 0.2,
+        dy: 0.18 + Math.random() * 0.15,
+        progress: 0,
+        length: 90 + Math.random() * 60,
+      });
+    });
+
+    let isIdle = false;
+    let idleTimer: ReturnType<typeof setTimeout>;
+
+    function resetIdleTimer() {
+      isIdle = false;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { isIdle = true; }, 45_000);
+    }
+
     function onMouseMove(e: MouseEvent) {
       mouseRef.current = {
         x: (e.clientX / window.innerWidth - 0.5) * PARALLAX_PX,
         y: (e.clientY / window.innerHeight - 0.5) * PARALLAX_PX,
       };
+      resetIdleTimer();
     }
+
+    resetIdleTimer();
 
     function draw() {
       if (!canvas || !ctx) return;
@@ -61,9 +95,10 @@ export function StarField() {
       const { x: mx, y: my } = mouseRef.current;
       const stars = starsRef.current;
 
+      const driftMult = isIdle ? 3.5 : 1;
       for (const star of stars) {
-        star.x = (star.x + star.vx + 1) % 1;
-        star.y = (star.y + star.vy + 1) % 1;
+        star.x = (star.x + star.vx * driftMult + 1) % 1;
+        star.y = (star.y + star.vy * driftMult + 1) % 1;
         star.twinklePhase += star.twinkleSpeed;
       }
 
@@ -100,6 +135,27 @@ export function StarField() {
         ctx.fill();
       }
 
+      // Advance and draw shooting stars
+      const speed = 0.032;
+      shootingStarsRef.current = shootingStarsRef.current.filter((ss) => ss.progress < 1);
+      for (const ss of shootingStarsRef.current) {
+        ss.progress = Math.min(1, ss.progress + speed);
+        const startX = ss.x * w + ss.dx * ss.length * ss.progress * w * 0.0012 + mx;
+        const startY = ss.y * h + ss.dy * ss.length * ss.progress * h * 0.0012 + my;
+        const tailX = startX - ss.dx * ss.length * (1 - ss.progress + 0.1);
+        const tailY = startY - ss.dy * ss.length * (1 - ss.progress + 0.1);
+        const alpha = Math.sin(ss.progress * Math.PI) * 0.85;
+        const grad = ctx.createLinearGradient(tailX, tailY, startX, startY);
+        grad.addColorStop(0, `rgba(255,255,255,0)`);
+        grad.addColorStop(1, `rgba(180,240,255,${alpha.toFixed(3)})`);
+        ctx.beginPath();
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(startX, startY);
+        ctx.stroke();
+      }
+
       rafRef.current = requestAnimationFrame(draw);
     }
 
@@ -113,6 +169,8 @@ export function StarField() {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
       cancelAnimationFrame(rafRef.current);
+      starEvents.unregister();
+      clearTimeout(idleTimer);
     };
   }, []);
 
