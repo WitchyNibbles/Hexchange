@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { getEvents, getSystemStatus, getTrades } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
+import { usePollingPulse } from "../lib/use-polling-pulse";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import type { EventSummary, SystemStatus, TradeSummary } from "../../src/shared/contracts";
 import { ObservatoryPanel } from "../components/observatory-panel";
 import { FamiliarStatus } from "../components/familiar-status";
@@ -31,7 +33,7 @@ const panelVariants = {
 };
 
 export function DashboardRoute() {
-  const status = usePollingJson(getSystemStatus, initialStatus);
+  const { value: status, isPulsing: statusFresh } = usePollingPulse(getSystemStatus, initialStatus);
   const events = usePollingJson<EventSummary[]>(getEvents, []);
   const trades = usePollingJson<TradeSummary[]>(getTrades, []);
 
@@ -40,7 +42,7 @@ export function DashboardRoute() {
   return (
     <div className="page-grid">
       <motion.section
-        className="glass-panel dashboard-chart-row"
+        className={`glass-panel dashboard-chart-row${statusFresh ? " is-fresh" : ""}`}
         custom={0}
         initial="hidden"
         animate="visible"
@@ -51,7 +53,7 @@ export function DashboardRoute() {
           <span className={`mode-pill mode-${status.mode}`}>{status.mode}</span>
         </div>
         <h2 className={pnlPositive ? "stat-profit" : "stat-loss"} style={{ margin: "0 0 0.1rem" }}>
-          {pnlPositive ? "+" : ""}${status.totalProfitUsd.toFixed(2)}
+          {pnlPositive ? "+" : ""}$<AnimatedNumber value={status.totalProfitUsd} />
         </h2>
         <PnlChart trades={trades} />
       </motion.section>
@@ -59,10 +61,10 @@ export function DashboardRoute() {
       {/* Left column: Observatory + Profit Lens stacked */}
       <div className="dashboard-column">
         <motion.div custom={1} initial="hidden" animate="visible" variants={panelVariants}>
-          <ObservatoryPanel status={status} trades={trades} />
+          <ObservatoryPanel status={status} trades={trades} isFresh={statusFresh} />
         </motion.div>
         <motion.div custom={2} initial="hidden" animate="visible" variants={panelVariants}>
-          <section className="glass-panel metric-panel">
+          <section className={`glass-panel metric-panel${statusFresh ? " is-fresh" : ""}`}>
             <div className="panel-header">
               <p className="panel-kicker">Profit Lens</p>
             </div>
@@ -74,22 +76,22 @@ export function DashboardRoute() {
             <div className="metric-stack">
               <div>
                 <span>Realized trades</span>
-                <strong>{trades.length}</strong>
+                <strong><AnimatedNumber value={trades.length} format={(n) => String(Math.round(n))} /></strong>
               </div>
               <div className={status.totalProfitPct >= 0 ? "stat-profit" : "stat-loss"}>
                 <span>Profit percent</span>
                 <strong>
                   {status.totalProfitPct >= 0 ? "+" : ""}
-                  {status.totalProfitPct.toFixed(2)}%
+                  <AnimatedNumber value={status.totalProfitPct} />%
                 </strong>
               </div>
               <div>
                 <span>Active paper</span>
-                <strong>{status.paperStrategies}</strong>
+                <strong><AnimatedNumber value={status.paperStrategies} format={(n) => String(Math.round(n))} /></strong>
               </div>
               <div>
                 <span>Active live</span>
-                <strong>{status.liveStrategies}</strong>
+                <strong><AnimatedNumber value={status.liveStrategies} format={(n) => String(Math.round(n))} /></strong>
               </div>
             </div>
           </section>

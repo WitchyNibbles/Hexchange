@@ -1,16 +1,18 @@
 import { BatSvg } from "./decorations/BatSvg";
+import { AnimatedNumber } from "./AnimatedNumber";
 import type { SystemStatus, TradeSummary } from "../../src/shared/contracts";
 
 interface ObservatoryPanelProps {
   status: SystemStatus;
   trades: TradeSummary[];
+  isFresh?: boolean;
 }
 
-export function ObservatoryPanel({ status, trades }: ObservatoryPanelProps) {
+export function ObservatoryPanel({ status, trades, isFresh }: ObservatoryPanelProps) {
   const recentTrade = trades[0];
 
   return (
-    <section className="glass-panel observatory-panel">
+    <section className={`glass-panel observatory-panel${isFresh ? " is-fresh" : ""}`}>
       <div className="panel-header">
         <p className="panel-kicker">Observatory</p>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -23,20 +25,22 @@ export function ObservatoryPanel({ status, trades }: ObservatoryPanelProps) {
       <div className="stat-grid">
         <div className={status.totalProfitUsd >= 0 ? "stat-profit" : "stat-loss"}>
           <span>Total profit</span>
-          <strong>${status.totalProfitUsd.toFixed(2)}</strong>
+          <strong>$<AnimatedNumber value={status.totalProfitUsd} /></strong>
         </div>
         <div>
           <span>Gross exposure</span>
-          <strong>${status.grossExposureUsd.toFixed(2)}</strong>
+          <strong>$<AnimatedNumber value={status.grossExposureUsd} /></strong>
         </div>
         <div className={status.dailyDrawdownPct > 3 ? "stat-loss" : ""}>
           <span>Daily drawdown</span>
-          <strong>{status.dailyDrawdownPct.toFixed(2)}%</strong>
+          <strong><AnimatedNumber value={status.dailyDrawdownPct} />%</strong>
         </div>
         <div>
           <span>Paper / live</span>
           <strong>
-            {status.paperStrategies} / {status.liveStrategies}
+            <AnimatedNumber value={status.paperStrategies} format={(n) => String(Math.round(n))} />
+            {" / "}
+            <AnimatedNumber value={status.liveStrategies} format={(n) => String(Math.round(n))} />
           </strong>
         </div>
       </div>
