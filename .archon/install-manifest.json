@@ -1,0 +1,655 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "target": ".archon/memory/README.md",
+      "strategy": "replace",
+      "contentHash": "59b830bfad1a39806dc08388ec94d5bc7e3f986c9ecca71e4cd58ffed4a5a102"
+    },
+    {
+      "target": ".archon/playwright/mcp.json",
+      "strategy": "replace",
+      "contentHash": "c15c5d3879fbdcb30cb0112af748ac67c14902528f87880e73b897eca5135950"
+    },
+    {
+      "target": ".archon/playwright/mcp.obsidian.json",
+      "strategy": "replace",
+      "contentHash": "2536795bd489009c3b25b04a70709bcfff5f4529f290d4c6f46da42b7ef21558"
+    },
+    {
+      "target": ".archon/playwright/mcp.vision.json",
+      "strategy": "replace",
+      "contentHash": "401931ac29a21983b06d08014ce10fe6800daf092fef82ccf614a43c198572ed"
+    },
+    {
+      "target": ".archon/rules/design-council-policy.md",
+      "strategy": "replace",
+      "contentHash": "810cf5016432d51a0f34e1cc8a0c123095082768a5d5721af58de0271cd73d42"
+    },
+    {
+      "target": ".archon/rules/frontend-acceptance.md",
+      "strategy": "replace",
+      "contentHash": "f6db0eb5937cd3b28248fccfa33cd86210778662441577d7651621c5991c2cc7"
+    },
+    {
+      "target": ".archon/rules/frontend-inspiration-sources.md",
+      "strategy": "replace",
+      "contentHash": "31ba830b29cd18def4b26091fe9d31d79d84e4625f88b1038fe9f82cc0169960"
+    },
+    {
+      "target": ".archon/rules/frontend-quality-rubric.md",
+      "strategy": "replace",
+      "contentHash": "1e9bb888c30b25064ce457230630cbb70971c23cd53bf755017b879fed3e6b91"
+    },
+    {
+      "target": ".archon/rules/git-conventions.md",
+      "strategy": "replace",
+      "contentHash": "81be380f9793fcf9b1dfc71da598f983266c8b47a20f865d666a23cc7b9358a3"
+    },
+    {
+      "target": ".archon/rules/gitnexus-advisory-policy.md",
+      "strategy": "replace",
+      "contentHash": "259e2397aaedbbb9961931a0daeb85ea8404e72a236651834f4525dc1cfa278d"
+    },
+    {
+      "target": ".archon/rules/memory-promotion.md",
+      "strategy": "replace",
+      "contentHash": "23df2a6eb75db5e862d21c7462a5d71c0af32e56ad6828010ca5af755a9d5cd2"
+    },
+    {
+      "target": ".archon/rules/policy-precedence.md",
+      "strategy": "replace",
+      "contentHash": "573a841977ac6af2f8e1e7a0de227d6b4511b06bedebbaadd6e4baf0b4d2833e"
+    },
+    {
+      "target": ".archon/rules/reasoning-quality.md",
+      "strategy": "replace",
+      "contentHash": "a7148009ec28db3dae72fbfc9fa855d60fc8effae265c739c153f85534ea682f"
+    },
+    {
+      "target": ".archon/rules/review-gate-policy.md",
+      "strategy": "replace",
+      "contentHash": "729fb0f64af42ac4ae5e6b571bfb5225e4748e33e6a2a4a9ad810647846a3f57"
+    },
+    {
+      "target": ".archon/rules/review-identity-policy.md",
+      "strategy": "replace",
+      "contentHash": "e68f44739cc122476f6fa4ee6d7e866cb609eb5d010e764276c8e73a28157adf"
+    },
+    {
+      "target": ".archon/rules/role-retrieval-policy.md",
+      "strategy": "replace",
+      "contentHash": "4da2ed9fd3ab7fcfe63bf182ccd3bad4c8ca3b46dbb98b73f942f23fe240127c"
+    },
+    {
+      "target": ".archon/rules/task-quality-matrix.md",
+      "strategy": "replace",
+      "contentHash": "b76c54adce2c371195b4dcc0aa6790782ce2439c42902ee044092e470e489cec"
+    },
+    {
+      "target": ".archon/rules/write-scope.md",
+      "strategy": "replace",
+      "contentHash": "045ad55ac2b47c4af030a862c084880516af8d42bc2d18d2df34e81f11299955"
+    },
+    {
+      "target": ".archon/templates/adr.md",
+      "strategy": "replace",
+      "contentHash": "f4b6f99b631ed894b2acd932301f1bb346532ca766dc8e52c1cd27f48db3dc75"
+    },
+    {
+      "target": ".archon/templates/checkpoint-summary.md",
+      "strategy": "replace",
+      "contentHash": "ab4ac7d698a527616f473a2ce0bc6abc61da2319b5f8c200dbd0144182db52e7"
+    },
+    {
+      "target": ".archon/templates/coverage-manifest.json",
+      "strategy": "replace",
+      "contentHash": "25310f41a4a576b6b706212cbf4f0df898d19e7e81c79068a31e1e26c42e953e"
+    },
+    {
+      "target": ".archon/templates/dac-decision-packet.md",
+      "strategy": "replace",
+      "contentHash": "07c9415b8fcedaab58b499e33eddde2bd4099f6c194f8e77f06e8bd5f1d16fe6"
+    },
+    {
+      "target": ".archon/templates/handoff.md",
+      "strategy": "replace",
+      "contentHash": "895d555b14bc9db32a1acc4c57ec91ea5b8067086ebcaaeac0dc3c744dadb18f"
+    },
+    {
+      "target": ".archon/templates/intake-brief.md",
+      "strategy": "replace",
+      "contentHash": "a6f56095a274eab28d2bfc8012c51d5e35fb542fb65c669b3cd9ede29efadd73"
+    },
+    {
+      "target": ".archon/templates/postmortem.md",
+      "strategy": "replace",
+      "contentHash": "639b279a6b69d64df8ef8ce44cdb3d2c93a6483b05d23fef1704e52ff02883d6"
+    },
+    {
+      "target": ".archon/templates/product-state.md",
+      "strategy": "replace",
+      "contentHash": "b3a00f20730d53125d0d76734b4f31dea288fca3e8ff41bfccbba62b69aa3236"
+    },
+    {
+      "target": ".archon/templates/progress-proof.json",
+      "strategy": "replace",
+      "contentHash": "3691e4d9352b86e251a6af18659f79e1861a1446c1afe4c9ed9d2d835c1666f5"
+    },
+    {
+      "target": ".archon/templates/project-idea.md",
+      "strategy": "replace",
+      "contentHash": "30743258b0fc7cbc0efce9fe9af584a7c55521185b47cdb28a41ff9e0e5cbce1"
+    },
+    {
+      "target": ".archon/templates/review-gate.md",
+      "strategy": "replace",
+      "contentHash": "4c6ab0205031a02b0a7db018b6d75af65292326e5e02bd0322c014a020013c64"
+    },
+    {
+      "target": ".archon/templates/review-identity-adapter.fixture.json",
+      "strategy": "replace",
+      "contentHash": "11d65634159253ee2557e37bca9fca0ec6beae189fb36d8b558cf50208ea935c"
+    },
+    {
+      "target": ".archon/templates/review-identity-bindings.json",
+      "strategy": "replace",
+      "contentHash": "fb0d60653862650b3aab53bbcf3eb763faa2df35cfe2d119614e4fce50aea48c"
+    },
+    {
+      "target": ".archon/templates/task-packet.md",
+      "strategy": "replace",
+      "contentHash": "3cd83f9e174a1a9942d1699dc881a8753e0e1467fc07f4e9c0174113c2bed7c3"
+    },
+    {
+      "target": ".archon/templates/task-queue.json",
+      "strategy": "replace",
+      "contentHash": "7c17ff031c0abf66be2883187a578053e45be90b660c13297c62f860c38bb29d"
+    },
+    {
+      "target": ".claude.md",
+      "strategy": "merge",
+      "contentHash": "3e73d973143080d4f987726843fedf1ef882c2b72b4cf4ee6f00f93b9e90f43c"
+    },
+    {
+      "target": ".claude/agents/accessibility-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "adeaa9045b5499df6a3d898981f23aa2027817ca92de97cac3e69e890cdbfb44"
+    },
+    {
+      "target": ".claude/agents/agent-runtime-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "aa78f034f32a9e7c9faedf987acc5b7bbc046dfbf5b6b25865f6c60550072d19"
+    },
+    {
+      "target": ".claude/agents/backend-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "1bd1cab45a1277c2e639843141a654a846a0d5ac9631670519ca959b042e95e1"
+    },
+    {
+      "target": ".claude/agents/build-resolver/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "221deb388ad22889a085064bdeb75e4abbd6d52fc7a804b62fafe6eb88fe25fe"
+    },
+    {
+      "target": ".claude/agents/compliance-reviewer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "bc4660206ff966555dd42cc205972e209b2ec8030d42e7ad8a4c887ca56903ad"
+    },
+    {
+      "target": ".claude/agents/context-manager/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "a6636534571e0a4d9db2dfce60b3ca008eb8ee7736cc5bc5d995e696d1fda415"
+    },
+    {
+      "target": ".claude/agents/data-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "7c6f69a6fb57a3147d5aaa1f3ae5190a5e7beb0b67e577cd95f2a6c30e6e3995"
+    },
+    {
+      "target": ".claude/agents/database-specialist/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "63697207b6d322bc6dbddc85c7cc332be40b829d5ca392ee7bd42d3cd5107913"
+    },
+    {
+      "target": ".claude/agents/docs-researcher/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "92bc049f4a8a9f8f8db441a31458a45b09ab5de81e2b7fefcc972d2a17130bc9"
+    },
+    {
+      "target": ".claude/agents/e2e-runner/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "fe954646445269751b61f50ed7181eaa40ecb48222118383b434b06d4d1e57e1"
+    },
+    {
+      "target": ".claude/agents/eval-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "b67e54aad490abe7a954c80b95bb03d67542726880ea4f1ac826684d0d9fad3e"
+    },
+    {
+      "target": ".claude/agents/frontend-designer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "de4590f9f3a2e69b6858b94e1796e9314b62fc339d1328d30d8d7d6b1d089cf4"
+    },
+    {
+      "target": ".claude/agents/git-operator/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "59655faf1f08d8dac519330f6d4177d5c9ac2c656f0f0676f2b7cfc3f9addecd"
+    },
+    {
+      "target": ".claude/agents/infra-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "7603670bd931621aaac014b373a980fbc109cbfd5036a1e1536614dbbf06dc3c"
+    },
+    {
+      "target": ".claude/agents/memory-curator/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "e3896685b04b8ce89c165054bff0944e2130d6a08def87c785536c29ec537647"
+    },
+    {
+      "target": ".claude/agents/ml-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "5c3d969d2026e2eff4ae58172887f3941cad3a92c63d38f9d35cdbedc3da2685"
+    },
+    {
+      "target": ".claude/agents/mobile-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "6e9371434d9e870eeb84af1a8294a105a2c9e3e4fa42e71394343b1ff12553db"
+    },
+    {
+      "target": ".claude/agents/observability-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "aebec662933db3f2a6eb49de971b1b98de6ebdd5608c7531df7d9051a6e31721"
+    },
+    {
+      "target": ".claude/agents/performance-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "a26b592ff2ee02939e315d594d892d7abf206148c1dc43b6173635c2821001ad"
+    },
+    {
+      "target": ".claude/agents/planner/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "ff622cd1d3cffadc3c5a49e393f961d5de4e1c91e534691d3a68917b16d7b80f"
+    },
+    {
+      "target": ".claude/agents/product-analyst/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "6e6560fe5735b8eac3cecb17f294054dfbd271f4e8b111f9a6e7fc9a4b9230bf"
+    },
+    {
+      "target": ".claude/agents/product-strategist/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "e6f63b0699894209f1a8a7dfd3ff53f3f796f96ef2c5d10ec596070f862667a1"
+    },
+    {
+      "target": ".claude/agents/qa-engineer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "5b81a43259a721ecfe4b1e84aea8275733a109778631bf144cc846b940d08374"
+    },
+    {
+      "target": ".claude/agents/release-readiness/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "ebdd25204302e76cfea8d4eb4d2790a2b9a7d020ae41102bc4d88421640e96f1"
+    },
+    {
+      "target": ".claude/agents/reviewer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "0e97edc060c0e8d7af2d175ca3bed21459a92fd2b2ddb2edc5163496db913800"
+    },
+    {
+      "target": ".claude/agents/security-reviewer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "f0d8ebb43ff1daabadfea6d7d09024f5087ae93db67dc12cb3211490b2244367"
+    },
+    {
+      "target": ".claude/agents/solution-architect/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "ba0d89dc5410d594cf649e3bb5e3d78bc0655fda5a96136798de97c9246f44e1"
+    },
+    {
+      "target": ".claude/agents/tdd-guide/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "c185134417f794d3d14afeef4435bad28636a3f3fed325d545b32f8881c50846"
+    },
+    {
+      "target": ".claude/agents/technical-writer/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "0a0c753a4dbf7ab7b2b7e78e60b00fde8a8d20a05bcbe77aad6d6f687cd711a3"
+    },
+    {
+      "target": ".claude/agents/ux-researcher/AGENT.md",
+      "strategy": "replace",
+      "contentHash": "ec1969f599256f5d432122d7b8377c9cd1b6399a3861413ade458f6f41856014"
+    },
+    {
+      "target": ".claude/hooks/archon-post-tool.mjs",
+      "strategy": "replace",
+      "contentHash": "f10b5003fb1e95be227a73382675d0b4584fcd2af9ae168a908c749fbee213b4"
+    },
+    {
+      "target": ".claude/hooks/archon-pre-tool.mjs",
+      "strategy": "replace",
+      "contentHash": "aff72b6864e6af96f1facdfb39f8188de320af79bca5dd56ac1b549033520aa7"
+    },
+    {
+      "target": ".claude/hooks/archon-prompt-submit.mjs",
+      "strategy": "replace",
+      "contentHash": "0e24211b117f677964b34e0043a3b45eb8df475317d13f3748409ef154c169fd"
+    },
+    {
+      "target": ".claude/hooks/archon-session-start.mjs",
+      "strategy": "replace",
+      "contentHash": "5152bfaa4cb0070d74f0705ca3272315c4397e7c511f12c50eca991a4a91256b"
+    },
+    {
+      "target": ".claude/hooks/archon-stop.mjs",
+      "strategy": "replace",
+      "contentHash": "5d47f5bd73667c92b8593d84165db0efa357493c9129481eb1954dd61c683566"
+    },
+    {
+      "target": ".claude/hooks/hook-policy.mjs",
+      "strategy": "replace",
+      "contentHash": "d70fdccbbf47b693f15ecd9e55be6f75a243f5966b5114ec98f7788b4f880e7a"
+    },
+    {
+      "target": ".claude/hooks/hook-utils.mjs",
+      "strategy": "replace",
+      "contentHash": "519f8e2ed0368c3d1718331b95de35988d10275a0edb59110cae5b2c7b90aa85"
+    },
+    {
+      "target": ".claude/hooks/hooks.json",
+      "strategy": "replace",
+      "contentHash": "7c157063e71a27922f994261255a440e83fb0cfcacb5600e1d53b712221ca6e7"
+    },
+    {
+      "target": ".claude/settings.json",
+      "strategy": "merge",
+      "contentHash": "21ad3012c70527a48e70ed23a035f7bbe58453cbf0ce41948d952e3e4ae7cb96"
+    },
+    {
+      "target": ".claude/skills/anthropic-mcp-builder/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "2315930143bfc9aa49ebc42e515fc12bf4f7303294b2c20c3a9a9aefec1e9b16"
+    },
+    {
+      "target": ".claude/skills/anthropic-webapp-testing/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "8cfb37715967beba7d98ec8c819e6c159ac095693a8218d3200df3292c2c341a"
+    },
+    {
+      "target": ".claude/skills/archon-accessibility-gate/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "a60ad6b162af111d67573cc9b6ee9d48d49e1811652ed9c4b464efe75c193436"
+    },
+    {
+      "target": ".claude/skills/archon-agent-runtime/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "59f2d60a38286b4cd23be3451c3c613ce9fb7d167637fdf7da660cd1d03cf74d"
+    },
+    {
+      "target": ".claude/skills/archon-architecture/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "246e43a0f6ea22594b1894c8e2b0c67e3cceaf2d2849b8fca9aa2c537ad5b657"
+    },
+    {
+      "target": ".claude/skills/archon-autopilot/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "8cdf73ddd617e65d88af7d57cf6b063eab5f7700bf173b073a44a4775086ba7b"
+    },
+    {
+      "target": ".claude/skills/archon-compliance-review/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "30376861b29c3083fe4a7c8754e31f71ab1eb1dabaeda69291a49645dd99d58c"
+    },
+    {
+      "target": ".claude/skills/archon-context-retrieval/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "312e420606ba49c095886121f51bafd85fa43d942fba165dfa94ac1985c686a6"
+    },
+    {
+      "target": ".claude/skills/archon-debugging/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "dc067d6153849677e9252c82592fe293513b6f25bf84e3352d2a5d141093bc5f"
+    },
+    {
+      "target": ".claude/skills/archon-design-system/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "d79fc07b6b9e510acddfd55dfb937d08502f61bdd97d79d0c42982b0dbc57967"
+    },
+    {
+      "target": ".claude/skills/archon-docs-research/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "d2aa59883028fc767a0b406135a6b6584318978ff731c2b3428cb917d69e1a98"
+    },
+    {
+      "target": ".claude/skills/archon-e2e/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "dfe69474a801ce48e56bedfb2329e3993847627b42c816bbe63c1411f144e035"
+    },
+    {
+      "target": ".claude/skills/archon-eval-engineering/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "0ea96a10cba12297ba52d8998628c00f9580ea33d8af07d892b08ebd28834c29"
+    },
+    {
+      "target": ".claude/skills/archon-execution/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "8a6442e2a590d0087486b5691d0424dc593e1b164f5c6a029df05d3d8490fb1b"
+    },
+    {
+      "target": ".claude/skills/archon-frontend-taste/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "d4746ab6c0e7e8d1d2a6bf426e06968a20e1e0fc6d6b982310cbdec8e00de63d"
+    },
+    {
+      "target": ".claude/skills/archon-git-operator/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "8c7460fe3e44e3e917027b1c49517284c5a6fafa3be748231770bb9d57bd8d30"
+    },
+    {
+      "target": ".claude/skills/archon-gitnexus/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "65c0edd33011cc4897197354c679d656ef771ffe1788e8cfa0f1de6ae45940f5"
+    },
+    {
+      "target": ".claude/skills/archon-infra-ops/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "aa1ebbb48025cd47adae0427357fcf16b8f2d686f19623812a4a76a0e810c20e"
+    },
+    {
+      "target": ".claude/skills/archon-intake/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "3fa61d03914e48591e3f2904c0ef9b108dcb1853bcf86cb181486201feed8816"
+    },
+    {
+      "target": ".claude/skills/archon-memory/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "7708392f8365496fabf113735e13842a83b6c2bc906bd393d7809d181ed657c9"
+    },
+    {
+      "target": ".claude/skills/archon-performance/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "e51d7d5fd9354110c5705752e5d21dd81d492e4e64afe0d388a8f4f4fa0ce7a7"
+    },
+    {
+      "target": ".claude/skills/archon-planning/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "e2a37ca27a5175b905455e50986657eb2c1584b62cc71f58f9a553115f378e8e"
+    },
+    {
+      "target": ".claude/skills/archon-product-analysis/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "12fc67431c71159c98a6ed403cad2f2fe2928d6565ead72ecbcfb13b6a8c03df"
+    },
+    {
+      "target": ".claude/skills/archon-product-framing/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "592c53ac1523ea0db504ff9acb3d3115a9824fe46e1a66941b7b2d0b91c8ab64"
+    },
+    {
+      "target": ".claude/skills/archon-qa-verification/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "b79a67bceffef2ff3de5968e11418c34e7ab10cc5ff25fb30c1a67d7a9b00045"
+    },
+    {
+      "target": ".claude/skills/archon-release-readiness/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "51d3c95486eeb21f0ac3953bf6a2a07db223be2f065e93bdc489f32829e10c62"
+    },
+    {
+      "target": ".claude/skills/archon-repair-loop/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "800ca22760c995cd04583296ea688164f7766ca5db41bf5af4b6cdb92b0a1c87"
+    },
+    {
+      "target": ".claude/skills/archon-review/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "069a3e25f305125a7a31ed54d05adfb973938b5001a2256d7575d01ea9947ffb"
+    },
+    {
+      "target": ".claude/skills/archon-setup/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "840c9c73afad96d0fa5bc6bb5b07c3b6574f23c15d626040d7181f81e8618307"
+    },
+    {
+      "target": ".claude/skills/archon-skill-evals/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "87c5636f36d01a7b56cd0ec16e0f3d43024892aa69f16512fecba6acc583aa77"
+    },
+    {
+      "target": ".claude/skills/archon-tdd/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "a552b0aa4d15ea4808873f586415fbc4a8edb029d3b2e3d610c85de6fd75e6a5"
+    },
+    {
+      "target": ".claude/skills/archon-technical-writing/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "474c7ce516bb4b353d19bb02ce7ce829e3f14b53ed3e893583f8897cf04b761d"
+    },
+    {
+      "target": ".claude/skills/archon-ui-patterns/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "54599fb4fb06c9deea2c8336cf29b5c031b9ec42af469555574b798797dbdfa3"
+    },
+    {
+      "target": ".claude/skills/archon-ux-research/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "f458a6042c05ab75e4036d300017abb833ba419854091ce131c562d151db319a"
+    },
+    {
+      "target": ".claude/skills/archon-visual-standards/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "36738e2e013e5ba117a37d355c4d480c7544901040af8befeea8897f6adc1f08"
+    },
+    {
+      "target": ".claude/skills/superpowers-finishing-development-branch/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "b879246be18bbc86ea2ccccc5f488cea9620d20c2ce6cbb67294bf66a3010787"
+    },
+    {
+      "target": ".claude/skills/superpowers-systematic-debugging/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "c7a73e91e6e1fdf7cb3fcf013c75be200fa17fa758dedf93a99051cd9f087fc3"
+    },
+    {
+      "target": ".claude/skills/superpowers-test-driven-development/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "5bbb7b914e0d0790e88a50019f8f70bec4b752b341c67c701c831e5c25871420"
+    },
+    {
+      "target": ".claude/skills/superpowers-using-git-worktrees/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "105307b338bd2d078899b223b695cc902204e262f2ba65702e6017c5ac51d4a2"
+    },
+    {
+      "target": ".claude/skills/superpowers-verification-before-completion/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "6e0e09450e9b05c273dd10e6e3c219a8d561f44d6759bfa7be48edf48489a5d9"
+    },
+    {
+      "target": ".claude/skills/superpowers-writing-plans/SKILL.md",
+      "strategy": "replace",
+      "contentHash": "95407b02deca543fbc58e572ac97f204ea6eaf3526cf0fde24194a73b06a2ce6"
+    },
+    {
+      "target": ".env.archon.example",
+      "strategy": "replace",
+      "contentHash": "b1ed9f63f60c447db680e7dce0847aae2f1445e0d6aba15800faedc7f7deb9c9"
+    },
+    {
+      "target": ".githooks/commit-msg",
+      "strategy": "replace",
+      "contentHash": "63b13e725535004628379813f12be2a5c0453a84ec002c05ff90779abbd0452f"
+    },
+    {
+      "target": ".githooks/pre-commit",
+      "strategy": "replace",
+      "contentHash": "4dfd9dabff63222d0861861d738fc0284bd6f6b4610240ab1bf24a9a65b21b79"
+    },
+    {
+      "target": ".gitignore",
+      "strategy": "merge",
+      "contentHash": "0e8764639a43bd4070a3bf51270844c839dd748cec3a440bb55ac4be347d2aed"
+    },
+    {
+      "target": "CLAUDE.md",
+      "strategy": "merge",
+      "contentHash": "e7fce3fb205f03fc8e3bd965a068b803fdd583b7a91910da4289746a1ece32f5"
+    },
+    {
+      "target": "docker-compose.archon.yml",
+      "strategy": "replace",
+      "contentHash": "bd37cdd477b01fbd94290ba6a4da9492377488ae84e161782443a856ce729601"
+    },
+    {
+      "target": "package.json",
+      "strategy": "merge",
+      "contentHash": "96991069fd3ba52160dff1c47288b18928e03daff9adec9785fbc7bbcfc2b9b0"
+    },
+    {
+      "target": "scripts/archon-session-start.sh",
+      "strategy": "replace",
+      "contentHash": "a0432a3a25b4dcba3e392a70153bda3539a966149b6d3148d52f9932424a9a68"
+    },
+    {
+      "target": "scripts/archon-setup.ps1",
+      "strategy": "replace",
+      "contentHash": "08c562fe6884545771ad89f757799edc536cd2dc49c9ea459645017facb97192"
+    },
+    {
+      "target": "scripts/archon-setup.sh",
+      "strategy": "replace",
+      "contentHash": "dc40376249863815149bd20fd46e3605344e1a3d1a6df434dbac0ec5e3a7f2ca"
+    },
+    {
+      "target": "scripts/check-archon-branch-name.sh",
+      "strategy": "replace",
+      "contentHash": "68f09e5a5e1cd8479116b929ed18cff7ffab9fdfd219c41e04b437a5011ebcf7"
+    },
+    {
+      "target": "scripts/check-archon-commit-msg.sh",
+      "strategy": "replace",
+      "contentHash": "e06c7366834538bff73ffd0887e3634631d722413f3b16c5eb97c5465a7b6e13"
+    },
+    {
+      "target": "scripts/check-archon-git-guard.sh",
+      "strategy": "replace",
+      "contentHash": "f8c0032fe7d22a820927212f8aa5ac3945635ca591515da5c702a6ca25a14fa4"
+    },
+    {
+      "target": "scripts/check-archon-happy-path.sh",
+      "strategy": "replace",
+      "contentHash": "77adcf2ec8e6b04f8b32fd3f41066db2b3cc2fe97b1db60ec69631a5558e11e1"
+    },
+    {
+      "target": "scripts/check-archon-workflow-live.sh",
+      "strategy": "replace",
+      "contentHash": "9b7f86f159d185a9eda6e6a9bc1e7947cff8544f30a88fdf0fa4fee0331cdd0e"
+    },
+    {
+      "target": "scripts/check-archon-workflow.sh",
+      "strategy": "replace",
+      "contentHash": "5ed30daf53bf8dce9ad184d99fec5d3aae448e008c505a71be0d575c275747b3"
+    }
+  ]
+}

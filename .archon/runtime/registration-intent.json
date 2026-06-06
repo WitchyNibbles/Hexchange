@@ -1,0 +1,9 @@
+{
+  "repoPath": "/home/eimi/projects/hexchange",
+  "projectSlug": "hexchange",
+  "runtimeProfile": "local-docker",
+  "dataRoot": "/home/eimi/.local/share/archon/hexchange",
+  "qdrantUrl": "http://127.0.0.1:16635/",
+  "qdrantCollection": "archon-memory",
+  "installManifestPath": "/home/eimi/projects/hexchange/.archon/install-manifest.json"
+}

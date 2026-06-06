@@ -1,0 +1,18 @@
+{
+  "status": "planned",
+  "project": {
+    "repoPath": "/home/eimi/projects/hexchange",
+    "projectSlug": "hexchange"
+  },
+  "registrationIntentPath": ".archon/runtime/registration-intent.json",
+  "backupManifestPath": ".archon/runtime/backup-manifest.json",
+  "orphans": [],
+  "conflicts": [],
+  "cleanupRecommendation": "legacy compatibility window still active; archive legacy managed files after doctor and verify pass",
+  "verification": {
+    "commands": [
+      "npm run archon:doctor",
+      "npm run archon:verify:setup"
+    ]
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "description": "Manager-led workflow control layer for Claude Code",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/archon-post-tool.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/archon-pre-tool.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/archon-session-start.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/archon-stop.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/archon-prompt-submit.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "archon": {
+      "args": [
+        "--experimental-strip-types",
+        "./node_modules/archon/src/mcp/server.ts"
+      ],
+      "command": "node"
+    },
+    "gitnexus": {
+      "args": [
+        "--no-install",
+        "gitnexus",
+        "mcp"
+      ],
+      "command": "npx"
+    },
+    "grafana": {
+      "args": [
+        "--experimental-strip-types",
+        "./node_modules/archon/src/grafana/mcp-server.ts"
+      ],
+      "command": "node"
+    },
+    "obsidian": {
+      "args": [
+        "@bitbonsai/mcpvault@latest",
+        "${ARCHON_OBSIDIAN_VAULT_PATH}"
+      ],
+      "command": "npx",
+      "env": {}
+    },
+    "playwright": {
+      "args": [
+        "--yes",
+        "@playwright/mcp@latest",
+        "--config",
+        ".archon/playwright/mcp.json"
+      ],
+      "command": "npx"
+    },
+    "playwright_vision": {
+      "args": [
+        "--yes",
+        "@playwright/mcp@latest",
+        "--config",
+        ".archon/playwright/mcp.vision.json"
+      ],
+      "command": "npx"
+    }
+  },
+  "projectName": "archon"
+}

@@ -4,5 +4,4 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$repo_root"
 
-bash scripts/check-archon-branch-name.sh
-bash scripts/check-archon-git-guard.sh
+bash scripts/check-devgod-commit-msg.sh "$1"
