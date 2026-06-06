@@ -3,10 +3,11 @@ import { startTransition, useEffect, useRef, useState } from "react";
 export function usePollingPulse<T>(
   loader: () => Promise<T>,
   initialValue: T,
-  baseIntervalMs = 15000
-): { value: T; isPulsing: boolean } {
+  baseIntervalMs = 15000,
+): { value: T; isPulsing: boolean; loading: boolean } {
   const [value, setValue] = useState<T>(initialValue);
   const [isPulsing, setIsPulsing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const pulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -38,9 +39,13 @@ export function usePollingPulse<T>(
         triggerPulse();
         startTransition(() => {
           setValue(next);
+          setLoading(false);
         });
       } catch {
-        if (!cancelled) failureCount = Math.min(failureCount + 1, 5);
+        if (!cancelled) {
+          failureCount = Math.min(failureCount + 1, 5);
+          setLoading(false);
+        }
       }
       scheduleNext();
     };
@@ -54,5 +59,5 @@ export function usePollingPulse<T>(
     };
   }, [baseIntervalMs, loader]);
 
-  return { value, isPulsing };
+  return { value, isPulsing, loading };
 }

@@ -8,6 +8,7 @@ import { ObservatoryPanel } from "../components/observatory-panel";
 import { FamiliarStatus } from "../components/familiar-status";
 import { RitualLog } from "../components/ritual-log";
 import { PnlChart } from "../components/PnlChart";
+import { SkeletonPanel } from "../components/Skeleton";
 
 const initialStatus: SystemStatus = {
   mode: "research",
@@ -33,9 +34,9 @@ const panelVariants = {
 };
 
 export function DashboardRoute() {
-  const { value: status, isPulsing: statusFresh } = usePollingPulse(getSystemStatus, initialStatus);
-  const events = usePollingJson<EventSummary[]>(getEvents, []);
-  const trades = usePollingJson<TradeSummary[]>(getTrades, []);
+  const { value: status, isPulsing: statusFresh, loading: statusLoading } = usePollingPulse(getSystemStatus, initialStatus);
+  const { value: events, loading: eventsLoading } = usePollingJson<EventSummary[]>(getEvents, []);
+  const { value: trades, loading: tradesLoading } = usePollingJson<TradeSummary[]>(getTrades, []);
 
   const pnlPositive = status.totalProfitUsd >= 0;
 
@@ -51,10 +52,16 @@ export function DashboardRoute() {
         <div className="panel-header">
           <p className="panel-kicker">Cumulative P&amp;L</p>
         </div>
-        <div className={`hero-stat ${pnlPositive ? "stat-profit" : "stat-loss"}`}>
-          {pnlPositive ? "+" : ""}$<AnimatedNumber value={status.totalProfitUsd} />
-        </div>
-        <PnlChart trades={trades} />
+        {statusLoading ? (
+          <SkeletonPanel heroHeight="3.5rem" lines={2} titleHeight="0.75rem" />
+        ) : (
+          <>
+            <div className={`hero-stat ${pnlPositive ? "stat-profit" : "stat-loss"}`}>
+              {pnlPositive ? "+" : ""}$<AnimatedNumber value={status.totalProfitUsd} />
+            </div>
+            <PnlChart trades={trades} />
+          </>
+        )}
       </motion.section>
 
       {/* Left column: Observatory + Profit Lens stacked */}
@@ -67,32 +74,38 @@ export function DashboardRoute() {
             <div className="panel-header">
               <p className="panel-kicker">Profit Lens</p>
             </div>
-            <h3>How profit is forming</h3>
-            <p>
-              Realized trades, current exposure, and promotion evidence side by side so gains are
-              never detached from risk.
-            </p>
-            <div className="metric-stack">
-              <div>
-                <span>Realized trades</span>
-                <strong><AnimatedNumber value={trades.length} format={(n) => String(Math.round(n))} /></strong>
-              </div>
-              <div className={status.totalProfitPct >= 0 ? "stat-profit" : "stat-loss"}>
-                <span>Profit percent</span>
-                <strong>
-                  {status.totalProfitPct >= 0 ? "+" : ""}
-                  <AnimatedNumber value={status.totalProfitPct} />%
-                </strong>
-              </div>
-              <div>
-                <span>Active paper</span>
-                <strong><AnimatedNumber value={status.paperStrategies} format={(n) => String(Math.round(n))} /></strong>
-              </div>
-              <div>
-                <span>Active live</span>
-                <strong><AnimatedNumber value={status.liveStrategies} format={(n) => String(Math.round(n))} /></strong>
-              </div>
-            </div>
+            {tradesLoading ? (
+              <SkeletonPanel lines={4} />
+            ) : (
+              <>
+                <h3>How profit is forming</h3>
+                <p>
+                  Realized trades, current exposure, and promotion evidence side by side so gains are
+                  never detached from risk.
+                </p>
+                <div className="metric-stack">
+                  <div>
+                    <span>Realized trades</span>
+                    <strong><AnimatedNumber value={trades.length} format={(n) => String(Math.round(n))} /></strong>
+                  </div>
+                  <div className={status.totalProfitPct >= 0 ? "stat-profit" : "stat-loss"}>
+                    <span>Profit percent</span>
+                    <strong>
+                      {status.totalProfitPct >= 0 ? "+" : ""}
+                      <AnimatedNumber value={status.totalProfitPct} />%
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Active paper</span>
+                    <strong><AnimatedNumber value={status.paperStrategies} format={(n) => String(Math.round(n))} /></strong>
+                  </div>
+                  <div>
+                    <span>Active live</span>
+                    <strong><AnimatedNumber value={status.liveStrategies} format={(n) => String(Math.round(n))} /></strong>
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         </motion.div>
       </div>
@@ -103,7 +116,14 @@ export function DashboardRoute() {
           <FamiliarStatus status={status} />
         </motion.div>
         <motion.div custom={4} initial="hidden" animate="visible" variants={panelVariants}>
-          <RitualLog events={events} />
+          {eventsLoading ? (
+            <section className="glass-panel">
+              <div className="panel-header"><p className="panel-kicker">Ritual Log</p></div>
+              <SkeletonPanel lines={5} />
+            </section>
+          ) : (
+            <RitualLog events={events} />
+          )}
         </motion.div>
       </div>
     </div>

@@ -1,7 +1,12 @@
 import { startTransition, useEffect, useState } from "react";
 
-export function usePollingJson<T>(loader: () => Promise<T>, initialValue: T, baseIntervalMs = 15000): T {
+export function usePollingJson<T>(
+  loader: () => Promise<T>,
+  initialValue: T,
+  baseIntervalMs = 15000,
+): { value: T; loading: boolean } {
   const [value, setValue] = useState<T>(initialValue);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,10 +24,16 @@ export function usePollingJson<T>(loader: () => Promise<T>, initialValue: T, bas
         const next = await loader();
         if (cancelled) return;
         failureCount = 0;
-        startTransition(() => { setValue(next); });
+        startTransition(() => {
+          setValue(next);
+          setLoading(false);
+        });
       } catch {
         // Keep the last good snapshot so the observatory stays readable.
-        if (!cancelled) failureCount = Math.min(failureCount + 1, 5);
+        if (!cancelled) {
+          failureCount = Math.min(failureCount + 1, 5);
+          setLoading(false);
+        }
       }
       scheduleNext();
     };
@@ -35,5 +46,5 @@ export function usePollingJson<T>(loader: () => Promise<T>, initialValue: T, bas
     };
   }, [baseIntervalMs, loader]);
 
-  return value;
+  return { value, loading };
 }

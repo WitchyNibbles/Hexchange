@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { getEngineStatus, getStrategies, postJson } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
 import type { EngineStatus, StrategySummary } from "../../src/shared/contracts";
+import { SkeletonPanel } from "../components/Skeleton";
 
 const defaultEngineStatus: EngineStatus = {
   mode: "simulated",
@@ -10,8 +11,8 @@ const defaultEngineStatus: EngineStatus = {
 };
 
 export function StrategiesRoute() {
-  const strategies = usePollingJson<StrategySummary[]>(getStrategies, []);
-  const engineStatus = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
+  const { value: strategies, loading: strategiesLoading } = usePollingJson<StrategySummary[]>(getStrategies, []);
+  const { value: engineStatus } = usePollingJson<EngineStatus>(getEngineStatus, defaultEngineStatus);
 
   return (
     <section className="glass-panel strategies-page">
@@ -24,6 +25,15 @@ export function StrategiesRoute() {
         <span className={`mode-pill mode-${engineStatus.mode}`}>{engineStatus.mode}</span>
         <span>{engineStatus.available ? "✦ ready" : "unavailable"}</span>
       </div>
+      {strategiesLoading ? (
+        <div className="strategy-list">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="strategy-card">
+              <SkeletonPanel lines={4} titleHeight="1.1rem" />
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="strategy-list">
         {strategies.map((strategy, i) => (
           <motion.article
@@ -106,6 +116,7 @@ export function StrategiesRoute() {
           <p className="panel-copy">No strategies found in the spellbook yet.</p>
         )}
       </div>
+      )}
     </section>
   );
 }

@@ -15,6 +15,7 @@ import type {
   SystemStatus,
   TradeSummary,
 } from "../../src/shared/contracts";
+import { SkeletonPanel } from "../components/Skeleton";
 
 const emptyPortfolio: PortfolioSnapshot = { positions: [], openOrders: [] };
 
@@ -40,10 +41,10 @@ const defaultSystemStatus: SystemStatus = {
 };
 
 export function TradesRoute() {
-  const trades = usePollingJson<TradeSummary[]>(getTrades, []);
-  const portfolio = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
-  const riskSettings = usePollingJson<RiskSettings>(getRiskSettings, defaultRiskSettings);
-  const status = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
+  const { value: trades, loading: tradesLoading } = usePollingJson<TradeSummary[]>(getTrades, []);
+  const { value: portfolio } = usePollingJson<PortfolioSnapshot>(getPortfolio, emptyPortfolio);
+  const { value: riskSettings } = usePollingJson<RiskSettings>(getRiskSettings, defaultRiskSettings);
+  const { value: status } = usePollingJson<SystemStatus>(getSystemStatus, defaultSystemStatus);
   const [draftSettings, setDraftSettings] = useState<RiskSettings>(defaultRiskSettings);
 
   useEffect(() => {
@@ -58,7 +59,14 @@ export function TradesRoute() {
         </div>
         <h2>Trade attribution</h2>
         <div className="trade-table">
-          {trades.map((trade, i) => {
+          {tradesLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="trade-row">
+                <SkeletonPanel lines={2} titleHeight="1rem" />
+              </div>
+            ))
+          ) : null}
+          {!tradesLoading && trades.map((trade, i) => {
             const pnlClass = trade.realizedPnlUsd >= 0 ? "pnl-positive" : "pnl-negative";
             return (
               <motion.article
@@ -81,7 +89,7 @@ export function TradesRoute() {
               </motion.article>
             );
           })}
-          {trades.length === 0 ? <p className="panel-copy">No trades recorded yet.</p> : null}
+          {!tradesLoading && trades.length === 0 ? <p className="panel-copy">No trades recorded yet.</p> : null}
         </div>
       </section>
 
