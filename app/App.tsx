@@ -7,6 +7,7 @@ import { StrategiesRoute } from "./routes/strategies";
 import { TradesRoute } from "./routes/trades";
 import { StarField } from "./components/StarField";
 import { MainHeader } from "./components/MainHeader";
+import { ObservatoryIcon, SpellbookIcon, LedgerIcon } from "./components/icons/NavIcons";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
 
@@ -70,15 +71,15 @@ export function App() {
             </p>
             <nav className="nav-list">
               <NavLink to="/">
-                <span className="nav-icon">◈</span>
+                <span className="nav-icon"><ObservatoryIcon size={15} /></span>
                 Observatory
               </NavLink>
               <NavLink to="/strategies">
-                <span className="nav-icon">✦</span>
+                <span className="nav-icon"><SpellbookIcon size={15} /></span>
                 Spellbook
               </NavLink>
               <NavLink to="/trades">
-                <span className="nav-icon">⟡</span>
+                <span className="nav-icon"><LedgerIcon size={15} /></span>
                 Ledger
               </NavLink>
             </nav>
