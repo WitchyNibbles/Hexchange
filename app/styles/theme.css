@@ -17,6 +17,12 @@
   --purple: #8b5cf6;
   --purple-soft: rgba(139, 92, 246, 0.2);
 
+  --amber: #f59e0b;
+  --amber-soft: rgba(245, 158, 11, 0.2);
+  --amber-strong: #fbbf24;
+  --amber-glow: rgba(245, 158, 11, 0.35);
+  --amber-dim: rgba(245, 158, 11, 0.08);
+
   --panel: rgba(7, 16, 44, 0.86);
   --panel-border: rgba(76, 201, 240, 0.18);
 
@@ -37,6 +43,26 @@
   --glow-accent: 0 0 18px rgba(76, 201, 240, 0.45), 0 0 50px rgba(76, 201, 240, 0.1);
   --glow-profit: 0 0 14px rgba(74, 222, 128, 0.45);
   --glow-danger: 0 0 14px rgba(248, 113, 113, 0.45);
+}
+
+/* ─── Page color temperature ─────────────────────── */
+
+body[data-page="spellbook"] {
+  --accent: var(--purple);
+  --accent-strong: #a78bfa;
+  --accent-glow: rgba(139, 92, 246, 0.35);
+  --accent-dim: rgba(139, 92, 246, 0.08);
+  --panel-border: rgba(139, 92, 246, 0.18);
+  --glow-accent: 0 0 18px rgba(139, 92, 246, 0.45), 0 0 50px rgba(139, 92, 246, 0.1);
+}
+
+body[data-page="ledger"] {
+  --accent: var(--amber);
+  --accent-strong: var(--amber-strong);
+  --accent-glow: var(--amber-glow);
+  --accent-dim: var(--amber-dim);
+  --panel-border: rgba(245, 158, 11, 0.18);
+  --glow-accent: 0 0 18px rgba(245, 158, 11, 0.45), 0 0 50px rgba(245, 158, 11, 0.1);
 }
 
 /* ─── Reset ──────────────────────────────────────── */
@@ -153,6 +179,16 @@ body::before {
 @keyframes sidebar-breathe {
   0%, 100% { opacity: 0.14; transform: scale(1) translateY(0); }
   50%       { opacity: 0.26; transform: scale(1.1) translateY(-15px); }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -480px 0; }
+  100% { background-position: 480px 0; }
+}
+
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ─── Scrollbars ─────────────────────────────────── */
@@ -1171,6 +1207,67 @@ button.danger:hover {
 .metric-panel .metric-stack {
   margin-top: 1rem;
 }
+
+/* ─── Responsive ─────────────────────────────────── */
+
+/* ─── Skeleton loaders ───────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 960px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.skeleton-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.25rem 0;
+}
+
+/* ─── Toast rail ─────────────────────────────────── */
+
+.toast-rail {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 0.78rem 1.1rem 0.78rem 1.3rem;
+  border-radius: 0.9rem;
+  background: rgba(6, 11, 26, 0.94);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left-width: 3px;
+  font-size: 0.86rem;
+  color: var(--text);
+  min-width: 220px;
+  max-width: 340px;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  animation: toast-slide-in 0.22s ease-out;
+  line-height: 1.5;
+}
+
+.toast-info    { border-left-color: var(--accent); }
+.toast-success { border-left-color: var(--profit); }
+.toast-error   { border-left-color: var(--loss); }
+.toast-warning { border-left-color: var(--warning); }
 
 /* ─── Responsive ─────────────────────────────────── */
 
