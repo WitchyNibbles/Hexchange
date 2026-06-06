@@ -86,11 +86,13 @@ export function App() {
           <div className="sidebar-inner">
             <div className="brand-mark">
               {/* Jack O'Lantern as the app mascot / brand sigil */}
-              <Lottie
-                animationData={pumpkinData}
-                loop
-                style={{ width: 54, height: 54, flexShrink: 0 }}
-              />
+              <motion.div
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+                style={{ flexShrink: 0 }}
+              >
+                <Lottie animationData={pumpkinData} loop style={{ width: 54, height: 54 }} />
+              </motion.div>
               <div>
                 <p className="eyebrow">Witchy operator console</p>
                 <h1>Hexchange</h1>
@@ -106,13 +108,20 @@ export function App() {
             </nav>
 
             {/* Bat lives at the bottom of the sidebar — atmospheric mood-setter */}
-            <div className="sidebar-decorations">
-              <Lottie
-                animationData={batData}
-                loop
-                style={{ width: 110, opacity: 0.82 }}
-              />
-            </div>
+            <motion.div
+              className="sidebar-decorations"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 240, damping: 22, delay: 0.45 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.15, rotate: [-6, 6, 0] }}
+                transition={{ type: "spring", stiffness: 300, damping: 14 }}
+                style={{ cursor: "default" }}
+              >
+                <Lottie animationData={batData} loop style={{ width: 110, opacity: 0.82 }} />
+              </motion.div>
+            </motion.div>
           </div>
         </motion.aside>
         <main className="main-panel">

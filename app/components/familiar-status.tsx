@@ -35,13 +35,14 @@ export function FamiliarStatus({ status }: { status: SystemStatus }) {
   }, [status.killSwitchEngaged, status.mode, catControls]);
 
   // Profit milestone jump — triggers when profit crosses from <=0 to >0
+  // Uses tween (not spring) because Framer Motion v12 spring only supports two keyframes
   useEffect(() => {
     const prev = prevProfitRef.current;
     prevProfitRef.current = status.totalProfitUsd;
     if (prev <= 0 && status.totalProfitUsd > 0) {
       catControls.start({
         y: [0, -18, 0],
-        transition: { type: "spring", stiffness: 320, damping: 12 }
+        transition: { type: "tween", duration: 0.45, ease: [0.22, 1, 0.36, 1] }
       });
     }
   }, [status.totalProfitUsd, catControls]);
