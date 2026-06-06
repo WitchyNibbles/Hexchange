@@ -74,6 +74,7 @@
   "mcpServers": {
     "archon": {
       "args": [
+        "--env-file=.env.archon",
         "--experimental-strip-types",
         "./node_modules/archon/src/mcp/server.ts"
       ],
