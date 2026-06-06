@@ -1260,8 +1260,16 @@ button.danger:hover {
   max-width: 340px;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  animation: toast-slide-in 0.22s ease-out;
   line-height: 1.5;
+  display: flex;
+  align-items: center;
+}
+
+.toast-icon {
+  margin-right: 0.55rem;
+  opacity: 0.75;
+  font-size: 0.82rem;
+  flex-shrink: 0;
 }
 
 .toast-info    { border-left-color: var(--accent); }
