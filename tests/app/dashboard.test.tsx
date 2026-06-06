@@ -1,5 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeAll } from "vitest";
+
+vi.mock("lightweight-charts", () => ({ createChart: () => ({ addSeries: () => ({ setData: vi.fn() }), timeScale: () => ({ fitContent: vi.fn() }), applyOptions: vi.fn(), remove: vi.fn() }), AreaSeries: {}, ColorType: { Solid: "solid" } }));
+vi.mock("lottie-react", () => ({ default: () => null }));
 import { DashboardRoute } from "../../app/routes/dashboard";
 
 describe("dashboard route", () => {

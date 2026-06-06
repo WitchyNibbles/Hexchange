@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { getEngineStatus, getStrategies, postJson } from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
 import type { EngineStatus, StrategySummary } from "../../src/shared/contracts";
@@ -19,13 +20,19 @@ export function StrategiesRoute() {
       </div>
       <h2>Strategy library</h2>
       <div className="engine-callout">
-        <span>Engine mode</span>
-        <strong>{engineStatus.mode}</strong>
-        <p>{engineStatus.available ? "Backtest engine ready." : "Backtest engine unavailable."}</p>
+        <span>Engine</span>
+        <span className={`mode-pill mode-${engineStatus.mode}`}>{engineStatus.mode}</span>
+        <span>{engineStatus.available ? "✦ ready" : "unavailable"}</span>
       </div>
       <div className="strategy-list">
-        {strategies.map((strategy) => (
-          <article className="strategy-card" key={strategy.id}>
+        {strategies.map((strategy, i) => (
+          <motion.article
+            className="strategy-card"
+            key={strategy.id}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, delay: i * 0.06, ease: "easeOut" }}
+          >
             <div className="strategy-heading">
               <div>
                 <h3>{strategy.name}</h3>
@@ -49,8 +56,8 @@ export function StrategiesRoute() {
               <strong>Last backtest</strong>
               <p>
                 {strategy.lastBacktest
-                  ? `${strategy.lastBacktest.feeAdjustedReturnPct.toFixed(2)}% return, ${strategy.lastBacktest.maxDrawdownPct.toFixed(2)}% drawdown, ${strategy.lastBacktest.trades} trades.`
-                  : "No backtest has been recorded yet."}
+                  ? `${strategy.lastBacktest.feeAdjustedReturnPct.toFixed(2)}% return · ${strategy.lastBacktest.maxDrawdownPct.toFixed(2)}% drawdown · ${strategy.lastBacktest.trades} trades`
+                  : "No backtest recorded yet."}
               </p>
             </div>
             <div className="strategy-actions">
@@ -93,8 +100,11 @@ export function StrategiesRoute() {
                 Arm live
               </button>
             </div>
-          </article>
+          </motion.article>
         ))}
+        {strategies.length === 0 && (
+          <p className="panel-copy">No strategies found in the spellbook yet.</p>
+        )}
       </div>
     </section>
   );

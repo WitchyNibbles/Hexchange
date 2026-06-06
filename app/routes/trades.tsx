@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
-import { getPortfolio, getRiskSettings, getSystemStatus, getTrades, patchJson, postJson } from "../lib/api";
+import { motion } from "framer-motion";
+import {
+  getPortfolio,
+  getRiskSettings,
+  getSystemStatus,
+  getTrades,
+  patchJson,
+  postJson,
+} from "../lib/api";
 import { usePollingJson } from "../lib/use-polling-json";
-import type { PortfolioSnapshot, RiskSettings, SystemStatus, TradeSummary } from "../../src/shared/contracts";
+import type {
+  PortfolioSnapshot,
+  RiskSettings,
+  SystemStatus,
+  TradeSummary,
+} from "../../src/shared/contracts";
 
-const emptyPortfolio: PortfolioSnapshot = {
-  positions: [],
-  openOrders: [],
-};
+const emptyPortfolio: PortfolioSnapshot = { positions: [], openOrders: [] };
 
 const defaultRiskSettings: RiskSettings = {
   maxPositionNotionalUsd: 100000,
@@ -48,21 +58,33 @@ export function TradesRoute() {
         </div>
         <h2>Trade attribution</h2>
         <div className="trade-table">
-          {trades.map((trade) => (
-            <article key={trade.id} className="trade-row">
-              <div>
-                <strong>{trade.symbol}</strong>
-                <p>{trade.explanation}</p>
-              </div>
-              <div>
-                <span>{trade.side}</span>
-                <strong>${trade.realizedPnlUsd.toFixed(2)}</strong>
-              </div>
-            </article>
-          ))}
-          {trades.length === 0 ? <p>No trades recorded yet.</p> : null}
+          {trades.map((trade, i) => {
+            const pnlClass = trade.realizedPnlUsd >= 0 ? "pnl-positive" : "pnl-negative";
+            return (
+              <motion.article
+                key={trade.id}
+                className="trade-row"
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.22, delay: i * 0.04 }}
+              >
+                <div>
+                  <strong>{trade.symbol}</strong>
+                  <p>{trade.explanation}</p>
+                </div>
+                <div className={`trade-pnl ${pnlClass}`}>
+                  <div className={`trade-side-pill side-${trade.side}`}>{trade.side}</div>
+                  <span className="pnl-value">
+                    {trade.realizedPnlUsd >= 0 ? "+" : ""}${trade.realizedPnlUsd.toFixed(2)}
+                  </span>
+                </div>
+              </motion.article>
+            );
+          })}
+          {trades.length === 0 ? <p className="panel-copy">No trades recorded yet.</p> : null}
         </div>
       </section>
+
       <section className="glass-panel portfolio-page">
         <div className="panel-header">
           <p className="panel-kicker">Ward Circle</p>
@@ -72,9 +94,20 @@ export function TradesRoute() {
           {portfolio.positions.map((position) => (
             <li key={position.symbol}>
               <span>{position.symbol}</span>
-              <strong>${position.unrealizedPnlUsd.toFixed(2)}</strong>
+              <strong
+                style={{
+                  color:
+                    position.unrealizedPnlUsd >= 0 ? "var(--profit)" : "var(--loss)",
+                }}
+              >
+                {position.unrealizedPnlUsd >= 0 ? "+" : ""}$
+                {position.unrealizedPnlUsd.toFixed(2)}
+              </strong>
             </li>
           ))}
+          {portfolio.positions.length === 0 && (
+            <li style={{ color: "var(--muted)", fontStyle: "italic" }}>No open positions</li>
+          )}
         </ul>
         <button
           type="button"
@@ -85,17 +118,18 @@ export function TradesRoute() {
             });
           }}
         >
-          Engage kill switch
+          ⊘ Engage kill switch
         </button>
       </section>
+
       <section className="glass-panel control-center-panel">
         <div className="panel-header">
           <p className="panel-kicker">Control Center</p>
         </div>
         <h3>Risk settings and safeguards</h3>
         <p className="panel-copy">
-          Tune the notional cap, drawdown ceiling, and live rollout size locally. Every change is persisted
-          so the observatory comes back exactly how you left it.
+          Tune the notional cap, drawdown ceiling, and live rollout size. Every change persists so
+          the observatory comes back exactly how you left it.
         </p>
         <div className="metric-stack">
           <div>
@@ -110,7 +144,7 @@ export function TradesRoute() {
             <span>Live rollout cap</span>
             <strong>${riskSettings.liveRolloutCapUsd.toFixed(0)}</strong>
           </div>
-          <div>
+          <div className={status.killSwitchEngaged ? "stat-loss" : ""}>
             <span>Kill switch</span>
             <strong>{status.killSwitchEngaged ? "engaged" : "ready"}</strong>
           </div>

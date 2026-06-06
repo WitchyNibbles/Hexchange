@@ -73,7 +73,7 @@ describe("strategy cockpit", () => {
       expect(screen.getByText(/AAPL Trend Familiar/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/engine mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Engine$/i)).toBeInTheDocument();
     expect(screen.getByText(/simulated/i)).toBeInTheDocument();
     expect(screen.getByText(/last backtest/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run backtest/i })).toBeInTheDocument();
