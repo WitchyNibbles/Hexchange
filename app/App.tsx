@@ -9,6 +9,7 @@ import { StarField } from "./components/StarField";
 import { MainHeader } from "./components/MainHeader";
 import { ObservatoryIcon, SpellbookIcon, LedgerIcon } from "./components/icons/NavIcons";
 import { ToastRail } from "./components/ToastRail";
+import { KillSwitchOverlay } from "./components/KillSwitchOverlay";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
 
@@ -132,6 +133,7 @@ export function App() {
         </main>
       </div>
       <ToastRail />
+      <KillSwitchOverlay />
     </BrowserRouter>
   );
 }
