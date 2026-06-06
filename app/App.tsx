@@ -40,43 +40,46 @@ export function App() {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.38, ease: "easeOut" }}
         >
-          <div className="brand-mark">
-            {/* Jack O'Lantern as the app mascot / brand sigil */}
-            <Lottie
-              animationData={pumpkinData}
-              loop
-              style={{ width: 54, height: 54, flexShrink: 0 }}
-            />
-            <div>
-              <p className="eyebrow">Witchy operator console</p>
-              <h1>Hexchange</h1>
+          <div className="sidebar-glow" aria-hidden="true" />
+          <div className="sidebar-inner">
+            <div className="brand-mark">
+              {/* Jack O'Lantern as the app mascot / brand sigil */}
+              <Lottie
+                animationData={pumpkinData}
+                loop
+                style={{ width: 54, height: 54, flexShrink: 0 }}
+              />
+              <div>
+                <p className="eyebrow">Witchy operator console</p>
+                <h1>Hexchange</h1>
+              </div>
             </div>
-          </div>
-          <p className="sidebar-copy">
-            A midnight observatory for validating and running autonomous trading strategies.
-          </p>
-          <nav className="nav-list">
-            <NavLink to="/">
-              <span className="nav-icon">◈</span>
-              Observatory
-            </NavLink>
-            <NavLink to="/strategies">
-              <span className="nav-icon">✦</span>
-              Spellbook
-            </NavLink>
-            <NavLink to="/trades">
-              <span className="nav-icon">⟡</span>
-              Ledger
-            </NavLink>
-          </nav>
+            <p className="sidebar-copy">
+              A midnight observatory for validating and running autonomous trading strategies.
+            </p>
+            <nav className="nav-list">
+              <NavLink to="/">
+                <span className="nav-icon">◈</span>
+                Observatory
+              </NavLink>
+              <NavLink to="/strategies">
+                <span className="nav-icon">✦</span>
+                Spellbook
+              </NavLink>
+              <NavLink to="/trades">
+                <span className="nav-icon">⟡</span>
+                Ledger
+              </NavLink>
+            </nav>
 
-          {/* Bat lives at the bottom of the sidebar — atmospheric mood-setter */}
-          <div className="sidebar-decorations">
-            <Lottie
-              animationData={batData}
-              loop
-              style={{ width: 110, opacity: 0.82 }}
-            />
+            {/* Bat lives at the bottom of the sidebar — atmospheric mood-setter */}
+            <div className="sidebar-decorations">
+              <Lottie
+                animationData={batData}
+                loop
+                style={{ width: 110, opacity: 0.82 }}
+              />
+            </div>
           </div>
         </motion.aside>
         <main className="main-panel">
