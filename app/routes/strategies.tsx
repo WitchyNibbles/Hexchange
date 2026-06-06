@@ -68,8 +68,19 @@ export function StrategiesRoute() {
                 onClick={() => {
                   void postJson(`/api/strategies/${strategy.id}/paper-session`);
                 }}
+                disabled={strategy.paperSessionActive}
               >
                 Start paper
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  void postJson(`/api/strategies/${strategy.id}/stop-session`);
+                }}
+                disabled={!strategy.paperSessionActive}
+              >
+                Stop session
               </button>
               <button
                 type="button"

@@ -1,5 +1,6 @@
 import type { NormalizedOrder } from "../domain/order";
 import type { PositionSnapshot } from "../domain/position";
+import type { MarketDataService } from "../market/market-data-service";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -15,18 +16,45 @@ export class LeanAdapter implements EngineAdapter {
   private positions = new Map<string, PositionSnapshot[]>();
   private backtests: BacktestResult[] = [];
 
+  constructor(private readonly marketData?: MarketDataService) {}
+
   private getMode(): EngineStatus["mode"] {
     return process.env.HEXCHANGE_ENGINE_MODE === "lean_cli" ? "lean_cli" : "simulated";
   }
 
   async runBacktest(request: BacktestRequest): Promise<BacktestResult> {
-    const baseline = request.market === "stock" ? 11.8 : 15.4;
+    const candles = this.marketData?.getCandles(request.symbol) ?? [];
+    const closes = candles.map((c) => c.close);
+
+    let feeAdjustedReturnPct: number;
+    let maxDrawdownPct: number;
+    let tradeCount: number;
+
+    if (closes.length >= 2) {
+      const totalReturn = ((closes.at(-1)! - closes[0]) / closes[0]) * 100;
+      feeAdjustedReturnPct = Number((totalReturn - 0.5).toFixed(2));
+
+      let peak = closes[0];
+      let maxDd = 0;
+      for (const price of closes) {
+        if (price > peak) peak = price;
+        const dd = ((peak - price) / peak) * 100;
+        if (dd > maxDd) maxDd = dd;
+      }
+      maxDrawdownPct = Number(maxDd.toFixed(2));
+      tradeCount = closes.length - 1;
+    } else {
+      feeAdjustedReturnPct = request.market === "stock" ? 3.2 : 5.1;
+      maxDrawdownPct = request.market === "stock" ? 1.4 : 2.1;
+      tradeCount = request.market === "stock" ? 8 : 6;
+    }
+
     const result = {
       strategyId: request.strategyId,
       runId: `backtest-${request.strategyId}`,
-      feeAdjustedReturnPct: baseline,
-      maxDrawdownPct: request.market === "stock" ? 4.8 : 6.2,
-      trades: request.market === "stock" ? 43 : 37,
+      feeAdjustedReturnPct,
+      maxDrawdownPct,
+      trades: tradeCount,
       executedAt: new Date().toISOString(),
     };
     this.backtests = [result, ...this.backtests.filter((item) => item.strategyId !== request.strategyId)].slice(0, 10);

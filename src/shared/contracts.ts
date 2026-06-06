@@ -64,6 +64,7 @@ export interface RiskSettings {
   maxPositionNotionalUsd: number;
   maxDailyLossPct: number;
   liveRolloutCapUsd: number;
+  startingCapitalUsd: number;
 }
 
 export interface EngineStatus extends EngineStatusPayload {}

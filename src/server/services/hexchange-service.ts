@@ -39,6 +39,7 @@ export class HexchangeService {
     maxPositionNotionalUsd: 100000,
     maxDailyLossPct: 8,
     liveRolloutCapUsd: 500,
+    startingCapitalUsd: 10000,
   };
   private readonly riskEngine = new RiskEngine(
     this.riskSettings,
@@ -46,7 +47,7 @@ export class HexchangeService {
     this.marketDataService,
   );
   private readonly liveTradingController = new LiveTradingController();
-  private readonly engineAdapter = createEngineAdapter();
+  private readonly engineAdapter = createEngineAdapter(this.marketDataService);
   private readonly broker = AlpacaPaperBroker.fromEnv();
   private readonly eventStore: EventStore;
   private readonly runtimeStateStore: RuntimeStateStore;
@@ -91,8 +92,8 @@ export class HexchangeService {
       mode: this.getMode(),
       currentActivity: this.describeActivity(),
       totalProfitUsd,
-      totalProfitPct: Number((totalProfitUsd / 10000).toFixed(2)),
-      dailyDrawdownPct: 1.4,
+      totalProfitPct: Number((totalProfitUsd / this.riskSettings.startingCapitalUsd * 100).toFixed(2)),
+      dailyDrawdownPct: this.computeDailyDrawdownPct(),
       grossExposureUsd,
       activeWarnings: this.killSwitch.getState().engaged ? [this.killSwitch.getState().reason] : [],
       paperStrategies: this.strategies.filter((strategy) => strategy.stage === "paper" || strategy.stage === "candidate_live").length,
@@ -160,15 +161,8 @@ export class HexchangeService {
   }
 
   async updateRiskSettings(nextSettings: Partial<RiskSettings>): Promise<RiskSettings> {
-    if (typeof nextSettings.maxPositionNotionalUsd === "number") {
-      this.riskSettings.maxPositionNotionalUsd = nextSettings.maxPositionNotionalUsd;
-    }
-    if (typeof nextSettings.maxDailyLossPct === "number") {
-      this.riskSettings.maxDailyLossPct = nextSettings.maxDailyLossPct;
-    }
-    if (typeof nextSettings.liveRolloutCapUsd === "number") {
-      this.riskSettings.liveRolloutCapUsd = nextSettings.liveRolloutCapUsd;
-    }
+    const validated = validateRiskSettingsPatch(nextSettings);
+    Object.assign(this.riskSettings, validated);
 
     await this.persistState();
     await this.recordEvent({
@@ -252,6 +246,27 @@ export class HexchangeService {
     return this.listStrategies().find((item) => item.id === strategyId)!;
   }
 
+  async stopPaperSession(strategyId: string): Promise<StrategySummary> {
+    const strategy = this.findStrategy(strategyId);
+    if (!strategy.paperSessionActive) {
+      return this.listStrategies().find((item) => item.id === strategyId)!;
+    }
+
+    const sessionId = `paper-${strategyId}`;
+    await this.engineAdapter.stopSession(sessionId);
+    this.updateStrategy({ ...strategy, paperSessionActive: false });
+
+    await this.recordEvent({
+      kind: "paper_session",
+      title: `${strategy.name} paper session stopped`,
+      body: `Session ${sessionId} was stopped by the operator.`,
+      severity: "info",
+    });
+
+    await this.persistState();
+    return this.listStrategies().find((item) => item.id === strategyId)!;
+  }
+
   async armLiveStrategy(strategyId: string): Promise<StrategySummary> {
     const strategy = this.findStrategy(strategyId);
     const armed = this.liveTradingController.armStrategy(strategy);
@@ -325,6 +340,11 @@ export class HexchangeService {
     };
     this.positions = [position, ...this.positions.filter((item) => item.symbol !== intent.symbol)];
 
+    const candles = this.marketDataService.getCandles(intent.symbol);
+    const ref = candles.at(-1);
+    const intraVol = ref ? (ref.high - ref.low) / ref.open : 0.02;
+    const simulatedReturnPct = (Math.random() * 2 - 1) * intraVol - 0.001;
+    const feeUsd = Number((fillPrice * intent.quantity * 0.001).toFixed(2));
     const trade: TradeLogEntry = {
       id: createId("trade"),
       strategyId: intent.strategyId,
@@ -333,8 +353,8 @@ export class HexchangeService {
       side: intent.side,
       quantity: intent.quantity,
       price: fillPrice,
-      feeUsd: Number((fillPrice * intent.quantity * 0.001).toFixed(2)),
-      realizedPnlUsd: Number((fillPrice * intent.quantity * 0.012).toFixed(2)),
+      feeUsd,
+      realizedPnlUsd: Number((simulatedReturnPct * fillPrice * intent.quantity).toFixed(2)),
       expectedEdgeBps: this.findStrategy(intent.strategyId).signal?.expectedEdgeBps ?? 0,
       explanation: intent.rationale,
       createdAt: new Date().toISOString(),
@@ -420,6 +440,7 @@ export class HexchangeService {
     this.riskSettings.maxPositionNotionalUsd = snapshot.riskSettings.maxPositionNotionalUsd;
     this.riskSettings.maxDailyLossPct = snapshot.riskSettings.maxDailyLossPct;
     this.riskSettings.liveRolloutCapUsd = snapshot.riskSettings.liveRolloutCapUsd;
+    this.riskSettings.startingCapitalUsd = snapshot.riskSettings.startingCapitalUsd ?? 10000;
     if (snapshot.killSwitch.engaged) {
       this.killSwitch.engage(snapshot.killSwitch.reason);
     }
@@ -439,6 +460,43 @@ export class HexchangeService {
       killSwitch: this.killSwitch.getState(),
     });
   }
+
+  private computeDailyDrawdownPct(): number {
+    const today = new Date().toISOString().slice(0, 10);
+    const dailyPnl = this.trades
+      .filter((t) => t.createdAt.startsWith(today))
+      .reduce((sum, t) => sum + t.realizedPnlUsd, 0);
+    if (dailyPnl >= 0) return 0;
+    return Number((Math.abs(dailyPnl) / this.riskSettings.startingCapitalUsd * 100).toFixed(2));
+  }
+}
+
+function assertPositiveFinite(value: number, field: string): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${field} must be a positive finite number`);
+  }
+}
+
+function validateRiskSettingsPatch(patch: Partial<RiskSettings>): Partial<RiskSettings> {
+  const result: Partial<RiskSettings> = {};
+  if (typeof patch.maxPositionNotionalUsd === "number") {
+    assertPositiveFinite(patch.maxPositionNotionalUsd, "maxPositionNotionalUsd");
+    result.maxPositionNotionalUsd = patch.maxPositionNotionalUsd;
+  }
+  if (typeof patch.maxDailyLossPct === "number") {
+    assertPositiveFinite(patch.maxDailyLossPct, "maxDailyLossPct");
+    if (patch.maxDailyLossPct > 100) throw new Error("maxDailyLossPct cannot exceed 100");
+    result.maxDailyLossPct = patch.maxDailyLossPct;
+  }
+  if (typeof patch.liveRolloutCapUsd === "number") {
+    assertPositiveFinite(patch.liveRolloutCapUsd, "liveRolloutCapUsd");
+    result.liveRolloutCapUsd = patch.liveRolloutCapUsd;
+  }
+  if (typeof patch.startingCapitalUsd === "number") {
+    assertPositiveFinite(patch.startingCapitalUsd, "startingCapitalUsd");
+    result.startingCapitalUsd = patch.startingCapitalUsd;
+  }
+  return result;
 }
 
 export async function createHexchangeService(appDir?: string): Promise<HexchangeService> {

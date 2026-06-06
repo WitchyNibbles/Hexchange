@@ -17,7 +17,14 @@ export class EventStore {
   async list(): Promise<EventLogRecord[]> {
     await this.ensureReady();
     const raw = await readFile(this.filePath, "utf8");
-    return JSON.parse(raw) as EventLogRecord[];
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      return JSON.parse(trimmed) as EventLogRecord[];
+    } catch {
+      await writeFile(this.filePath, "[]", "utf8");
+      return [];
+    }
   }
 
   async append(event: EventLogRecord): Promise<void> {

@@ -1,4 +1,5 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,9 +9,46 @@ import type { HexchangeService } from "./services/hexchange-service";
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(currentDir, "..", "..", "..");
 
+const LOCALHOST_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+]);
+
+const mutateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please slow down." },
+});
+
+function requireLocalOrigin(request: Request, response: Response, next: NextFunction): void {
+  const origin = request.headers.origin;
+  const originStr = Array.isArray(origin) ? origin[0] : origin;
+  if (originStr && !LOCALHOST_ORIGINS.has(originStr)) {
+    response.status(403).json({ error: "Cross-origin requests are not permitted." });
+    return;
+  }
+  next();
+}
+
 export function createServerApp(service: HexchangeService): Express {
   const app = express();
   app.use(express.json());
+
+  // Rate limiting and origin enforcement for all mutating requests
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    if (request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS") {
+      mutateLimiter(request, response, (err) => {
+        if (err) { next(err); return; }
+        requireLocalOrigin(request, response, next);
+      });
+    } else {
+      next();
+    }
+  });
 
   app.get("/api/health", async (_request, response) => {
     response.json(await service.getHealth());
@@ -40,6 +78,10 @@ export function createServerApp(service: HexchangeService): Express {
     response.json(await service.startPaperSession(request.params.strategyId));
   });
 
+  app.post("/api/strategies/:strategyId/stop-session", async (request, response) => {
+    response.json(await service.stopPaperSession(request.params.strategyId));
+  });
+
   app.post("/api/strategies/:strategyId/arm-live", async (request, response) => {
     response.json(await service.armLiveStrategy(request.params.strategyId));
   });
@@ -65,7 +107,11 @@ export function createServerApp(service: HexchangeService): Express {
   });
 
   app.patch("/api/control/settings", async (request, response) => {
-    response.json(await service.updateRiskSettings(request.body ?? {}));
+    try {
+      response.json(await service.updateRiskSettings(request.body ?? {}));
+    } catch (error) {
+      response.status(400).json({ error: error instanceof Error ? error.message : "invalid settings" });
+    }
   });
 
   registerEventRoutes(app, service);

@@ -12,6 +12,7 @@ const defaultRiskSettings: RiskSettings = {
   maxPositionNotionalUsd: 100000,
   maxDailyLossPct: 8,
   liveRolloutCapUsd: 500,
+  startingCapitalUsd: 10000,
 };
 
 const defaultSystemStatus: SystemStatus = {

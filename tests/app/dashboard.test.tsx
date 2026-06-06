@@ -34,7 +34,7 @@ describe("dashboard route", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Local trading familiar")).toBeInTheDocument();
+      expect(screen.getByText(/AAPL Trend Familiar is paper trading AAPL/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/AAPL Trend Familiar is paper trading AAPL/i)).toBeInTheDocument();
   });
 });
