@@ -42,19 +42,18 @@ export function DashboardRoute() {
   return (
     <div className="page-grid">
       <motion.section
-        className={`glass-panel dashboard-chart-row${statusFresh ? " is-fresh" : ""}`}
+        className={`glass-panel panel-hero dashboard-chart-row${statusFresh ? " is-fresh" : ""}`}
         custom={0}
         initial="hidden"
         animate="visible"
         variants={panelVariants}
       >
         <div className="panel-header">
-          <p className="panel-kicker">Cumulative P&L</p>
-          <span className={`mode-pill mode-${status.mode}`}>{status.mode}</span>
+          <p className="panel-kicker">Cumulative P&amp;L</p>
         </div>
-        <h2 className={pnlPositive ? "stat-profit" : "stat-loss"} style={{ margin: "0 0 0.1rem" }}>
+        <div className={`hero-stat ${pnlPositive ? "stat-profit" : "stat-loss"}`}>
           {pnlPositive ? "+" : ""}$<AnimatedNumber value={status.totalProfitUsd} />
-        </h2>
+        </div>
         <PnlChart trades={trades} />
       </motion.section>
 
