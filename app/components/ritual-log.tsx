@@ -58,7 +58,7 @@ export function RitualLog({ events }: { events: EventSummary[] }) {
                 key={event.id}
                 initial={{ opacity: 0, scale: 0.93, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.22, delay: i * 0.05, ease: "easeOut" }}
+                transition={{ type: "spring", stiffness: 300, damping: 22, delay: i * 0.05 }}
               >
                 <div className="event-meta">
                   <span>

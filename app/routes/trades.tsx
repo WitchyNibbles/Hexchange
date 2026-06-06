@@ -74,7 +74,8 @@ export function TradesRoute() {
                 className={`trade-row trade-side-${trade.side}`}
                 initial={{ opacity: 0, scale: 0.94, x: -8 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                transition={{ duration: 0.22, delay: i * 0.04, ease: "easeOut" }}
+                transition={{ type: "spring", stiffness: 280, damping: 22, delay: i * 0.07 }}
+                whileHover={{ y: -2, scale: 1.003 }}
               >
                 <div>
                   <strong>{trade.symbol}</strong>
