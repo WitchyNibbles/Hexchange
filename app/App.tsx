@@ -1,4 +1,4 @@
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, NavLink, Route, Routes, useLocation, useMatch } from "react-router-dom";
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Lottie from "lottie-react";
@@ -11,6 +11,35 @@ import { ObservatoryIcon, SpellbookIcon, LedgerIcon } from "./components/icons/N
 import { ToastRail } from "./components/ToastRail";
 import pumpkinData from "./assets/lottie/pumpkin.json";
 import batData from "./assets/lottie/bat.json";
+
+function NavItem({
+  to,
+  end,
+  icon,
+  label,
+}: {
+  to: string;
+  end?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  const match = useMatch({ path: to, end: end ?? false });
+  const isActive = Boolean(match);
+
+  return (
+    <NavLink to={to} end={end}>
+      {isActive && (
+        <motion.div
+          layoutId="nav-pill"
+          className="nav-active-pill"
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        />
+      )}
+      <span className="nav-icon nav-icon-z">{icon}</span>
+      <span className="nav-label-z">{label}</span>
+    </NavLink>
+  );
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -71,18 +100,9 @@ export function App() {
               A midnight observatory for validating and running autonomous trading strategies.
             </p>
             <nav className="nav-list">
-              <NavLink to="/">
-                <span className="nav-icon"><ObservatoryIcon size={15} /></span>
-                Observatory
-              </NavLink>
-              <NavLink to="/strategies">
-                <span className="nav-icon"><SpellbookIcon size={15} /></span>
-                Spellbook
-              </NavLink>
-              <NavLink to="/trades">
-                <span className="nav-icon"><LedgerIcon size={15} /></span>
-                Ledger
-              </NavLink>
+              <NavItem to="/" end icon={<ObservatoryIcon size={15} />} label="Observatory" />
+              <NavItem to="/strategies" icon={<SpellbookIcon size={15} />} label="Spellbook" />
+              <NavItem to="/trades" icon={<LedgerIcon size={15} />} label="Ledger" />
             </nav>
 
             {/* Bat lives at the bottom of the sidebar — atmospheric mood-setter */}
